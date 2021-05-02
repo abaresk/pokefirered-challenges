@@ -3697,6 +3697,19 @@ BattleScript_DoTurnDmg::
 	atk24 .+4
 	end2
 
+BattleScript_NuclearTurnDmg::
+	printstring STRINGID_PKMNHURTBYNUCLEAR
+	waitmessage 0x40
+BattleScript_DoNuclearTurnDmg::
+	statusanimationnuclear BS_ATTACKER
+BattleScript_DoNuclearDmg::
+	orword gHitMarker, HITMARKER_IGNORE_SUBSTITUTE | HITMARKER_x100000
+	healthbarupdate BS_ATTACKER
+	datahpupdate BS_ATTACKER
+	tryfaintmon BS_ATTACKER, FALSE, NULL
+	atk24 .+4
+	end2
+	
 BattleScript_BurnTurnDmg::
 	printstring STRINGID_PKMNHURTBYBURN
 	waitmessage 0x40

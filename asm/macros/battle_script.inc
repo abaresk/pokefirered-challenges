@@ -573,6 +573,11 @@
 	.byte \battler
 	.endm
 
+	.macro statusanimationnuclear battler:req
+	.byte 0xF8
+	.byte \battler
+	.endm
+
 	.macro status2animation battler:req, status2:req
 	.byte 0x65
 	.byte \battler

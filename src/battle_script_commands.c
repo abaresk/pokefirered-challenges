@@ -158,6 +158,7 @@ static void atk61_drawpartystatussummary(void);
 static void atk62_hidepartystatussummary(void);
 static void atk63_jumptocalledmove(void);
 static void atk64_statusanimation(void);
+static void atkF8_statusanimationnuclear(void);
 static void atk65_status2animation(void);
 static void atk66_chosenstatusanimation(void);
 static void atk67_yesnobox(void);
@@ -556,6 +557,7 @@ void (* const gBattleScriptingCommandsTable[])(void) =
     atkF5_removeattackerstatus1,
     atkF6_finishaction,
     atkF7_finishturn,
+    atkF8_statusanimationnuclear,
 };
 
 struct StatFractions
@@ -5331,6 +5333,22 @@ static void atk64_statusanimation(void)
          && !(gHitMarker & HITMARKER_NO_ANIMATIONS))
         {
             BtlController_EmitStatusAnimation(0, FALSE, gBattleMons[gActiveBattler].status1);
+            MarkBattlerForControllerExec(gActiveBattler);
+        }
+        gBattlescriptCurrInstr += 2;
+    }
+}
+
+static void atkF8_statusanimationnuclear(void)
+{
+    if (gBattleControllerExecFlags == 0)
+    {
+        gActiveBattler = GetBattlerForBattleScript(gBattlescriptCurrInstr[1]);
+        if (!(gStatuses3[gActiveBattler] & STATUS3_SEMI_INVULNERABLE)
+            && gDisableStructs[gActiveBattler].substituteHP == 0
+            && !(gHitMarker & HITMARKER_NO_ANIMATIONS))
+        {
+            BtlController_EmitStatusAnimation(0, FALSE, STATUS1_POISON);
             MarkBattlerForControllerExec(gActiveBattler);
         }
         gBattlescriptCurrInstr += 2;

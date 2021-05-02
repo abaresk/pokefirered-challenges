@@ -33,6 +33,8 @@ static const u16 sSoundMovesTable[] =
     MOVE_UPROAR, MOVE_METAL_SOUND, MOVE_GRASS_WHISTLE, MOVE_HYPER_VOICE, 0xFFFF
 };
 
+static const bool8 FLAG_NUCLEAR_TURN_DAMAGE = TRUE;
+
 u8 GetBattlerForBattleScript(u8 caseId)
 {
     u32 ret = 0;
@@ -666,6 +668,7 @@ enum
     ENDTURN_LEECH_SEED,
     ENDTURN_POISON,
     ENDTURN_BAD_POISON,
+    ENDTURN_NUCLEAR,
     ENDTURN_BURN,
     ENDTURN_NIGHTMARES,
     ENDTURN_CURSE,
@@ -767,6 +770,19 @@ u8 DoBattlerEndTurnEffects(void)
                     ++effect;
                 }
                 ++gBattleStruct->turnEffectsTracker;
+                break;
+            case ENDTURN_NUCLEAR:  // deal nuclear damage to the player
+                if (FLAG_NUCLEAR_TURN_DAMAGE) {
+                    if (GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER &&
+                        gBattleMons[gActiveBattler].hp != 0) {
+                            gBattleMoveDamage = gBattleMons[gActiveBattler].maxHP / 8;
+                            if (gBattleMoveDamage == 0)
+                                gBattleMoveDamage = 1;
+                            BattleScriptExecute(BattleScript_NuclearTurnDmg);
+                            effect++;
+                    }
+                }
+                gBattleStruct->turnEffectsTracker++;
                 break;
             case ENDTURN_BURN:  // burn
                 if ((gBattleMons[gActiveBattler].status1 & STATUS1_BURN) && gBattleMons[gActiveBattler].hp != 0)
