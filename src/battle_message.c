@@ -1536,7 +1536,7 @@ void BufferStringBattle(u16 stringId)
                 if (gBattleTypeFlags & BATTLE_TYPE_MULTI)
                     stringPtr = sText_LinkPartnerSentOutPkmnGoPkmn;
                 else
-                    stringPtr = sText_GoTwoPkmn;
+                    stringPtr = sText_GoPkmn;
             }
             else
             {

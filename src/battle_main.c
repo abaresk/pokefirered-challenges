@@ -65,6 +65,7 @@ static void HandleEndTurn_RanFromBattle(void);
 static void HandleEndTurn_MonFled(void);
 static void HandleEndTurn_FinishBattle(void);
 static void CB2_InitBattleInternal(void);
+static u8 CountUsableMons(void);
 static void CB2_PreInitMultiBattle(void);
 static void CB2_HandleStartMultiBattle(void);
 static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum);
@@ -215,6 +216,8 @@ EWRAM_DATA struct MonSpritesGfx *gMonSpritesGfxPtr = NULL;
 EWRAM_DATA u16 gBattleMovePower = 0;
 EWRAM_DATA u16 gMoveToLearn = 0;
 EWRAM_DATA u8 gBattleMonForms[MAX_BATTLERS_COUNT] = {0};
+EWRAM_DATA u8 gPlayerMonsCount = 0;
+EWRAM_DATA u8 gEnemyMonsCount = 0;
 
 void (*gPreBattleCallback1)(void);
 void (*gBattleMainFunc)(void);
@@ -702,7 +705,27 @@ static void CB2_InitBattleInternal(void)
     gMain.inBattle = TRUE;
     for (i = 0; i < PARTY_SIZE; ++i)
         AdjustFriendship(&gPlayerParty[i], FRIENDSHIP_EVENT_LEAGUE_BATTLE);
+    
+    // Store number of player mons
+    gPlayerMonsCount = CountUsableMons();
     gBattleCommunication[MULTIUSE_STATE] = 0;
+}
+
+static u8 CountUsableMons(void)
+{
+    s32 i;
+    u8 aliveCount = 0;
+
+    for (i = 0; i < PARTY_SIZE; i++)
+    {
+        if (GetMonData(&gPlayerParty[i], MON_DATA_SPECIES, NULL) != SPECIES_NONE &&
+            GetMonData(&gPlayerParty[i], MON_DATA_SPECIES2, NULL) != SPECIES_EGG &&
+            GetMonData(&gPlayerParty[i], MON_DATA_HP, NULL) != 0)
+        {
+            aliveCount++;
+        }
+    }
+    return aliveCount;
 }
 
 #define BUFFER_PARTY_VS_SCREEN_STATUS(party, flags, i)              \
@@ -1529,6 +1552,7 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
      && !(gBattleTypeFlags & (BATTLE_TYPE_BATTLE_TOWER | BATTLE_TYPE_EREADER_TRAINER | BATTLE_TYPE_TRAINER_TOWER)))
     {
         ZeroEnemyPartyMons();
+        gEnemyMonsCount = gTrainers[trainerNum].partySize;
         for (i = 0; i < gTrainers[trainerNum].partySize; ++i)
         {
 
@@ -1601,7 +1625,11 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
             }
             }
         }
-        gBattleTypeFlags |= gTrainers[trainerNum].doubleBattle;
+
+        // If enemy has more than 1 mon, force double battle.
+        if (gEnemyMonsCount > 1) {
+            gBattleTypeFlags |= BATTLE_TYPE_DOUBLE;
+        }
     }
     return gTrainers[trainerNum].partySize;
 }
@@ -2486,6 +2514,15 @@ static void BattleIntroDrawTrainersOrMonsSprites(void)
                 ptr = (u8 *)&gBattleMons[gActiveBattler];
                 for (i = 0; i < sizeof(struct BattlePokemon); ++i)
                     ptr[i] = gBattleBufferB[gActiveBattler][4 + i];
+
+                // If player has only 1 mon, clear data for second player mon.
+                if (GetBattlerPosition(gActiveBattler) == B_POSITION_PLAYER_RIGHT &&
+                    gPlayerMonsCount == 1)
+                {
+                    for (i = 0; i < sizeof(struct BattlePokemon); i++)
+                        ptr[i] = 0;
+                }
+
                 gBattleMons[gActiveBattler].type1 = gBaseStats[gBattleMons[gActiveBattler].species].type1;
                 gBattleMons[gActiveBattler].type2 = gBaseStats[gBattleMons[gActiveBattler].species].type2;
                 gBattleMons[gActiveBattler].ability = GetAbilityBySpecies(gBattleMons[gActiveBattler].species, gBattleMons[gActiveBattler].abilityNum);
@@ -2502,6 +2539,11 @@ static void BattleIntroDrawTrainersOrMonsSprites(void)
             }
             if (gBattleTypeFlags & BATTLE_TYPE_TRAINER)
             {
+                // Mark the player's second mon as abset.
+                if (DoubleBattleNonMulti()) {
+                    gAbsentBattlerFlags |= (1 << B_POSITION_PLAYER_RIGHT);
+                }
+                
                 if (GetBattlerPosition(gActiveBattler) == B_POSITION_OPPONENT_LEFT)
                 {
                     BtlController_EmitDrawTrainerPic(0);

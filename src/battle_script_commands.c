@@ -4213,7 +4213,7 @@ static void atk49_moveend(void)
              && !(gHitMarker & HITMARKER_NO_ATTACKSTRING))
             {
                 u8 battlerId = GetBattlerAtPosition(BATTLE_PARTNER(GetBattlerPosition(gBattlerTarget)));
-                if (gBattleMons[battlerId].hp != 0)
+                if (gBattleMons[battlerId].hp != 0 && !(gBattleTypeFlags & BATTLE_TYPE_DOUBLE))
                 {
                     gBattlerTarget = battlerId;
                     gHitMarker |= HITMARKER_NO_ATTACKSTRING;
@@ -6025,12 +6025,14 @@ static void atk77_setprotectlike(void)
 
 static void atk78_faintifabilitynotdamp(void)
 {
+    u8 battlerTarget;
+    
     if (!gBattleControllerExecFlags)
     {
-        for (gBattlerTarget = 0; gBattlerTarget < gBattlersCount; ++gBattlerTarget)
-            if (gBattleMons[gBattlerTarget].ability == ABILITY_DAMP)
+        for (battlerTarget = 0; battlerTarget < gBattlersCount; ++battlerTarget)
+            if (gBattleMons[battlerTarget].ability == ABILITY_DAMP)
                 break;
-        if (gBattlerTarget == gBattlersCount)
+        if (battlerTarget == gBattlersCount)
         {
             gActiveBattler = gBattlerAttacker;
             gBattleMoveDamage = gBattleMons[gActiveBattler].hp;
@@ -6038,14 +6040,14 @@ static void atk78_faintifabilitynotdamp(void)
             MarkBattlerForControllerExec(gActiveBattler);
             ++gBattlescriptCurrInstr;
 
-            for (gBattlerTarget = 0; gBattlerTarget < gBattlersCount; ++gBattlerTarget)
-                if (gBattlerTarget != gBattlerAttacker && !(gAbsentBattlerFlags & gBitTable[gBattlerTarget]))
+            for (battlerTarget = 0; battlerTarget < gBattlersCount; ++battlerTarget)
+                if (battlerTarget != gBattlerAttacker && !(gAbsentBattlerFlags & gBitTable[battlerTarget]))
                     break;
         }
         else
         {
             gLastUsedAbility = ABILITY_DAMP;
-            RecordAbilityBattle(gBattlerTarget, gBattleMons[gBattlerTarget].ability);
+            RecordAbilityBattle(battlerTarget, gBattleMons[battlerTarget].ability);
             gBattlescriptCurrInstr = BattleScript_DampStopsExplosion;
         }
     }
@@ -7939,9 +7941,11 @@ static void atkB9_magnitudedamagecalculation(void)
         magnitude = 10;
     }
     PREPARE_BYTE_NUMBER_BUFFER(gBattleTextBuff1, 2, magnitude)
+#ifndef NO_TARGET_BOTH
     for (gBattlerTarget = 0; gBattlerTarget < gBattlersCount; ++gBattlerTarget)
         if (gBattlerTarget != gBattlerAttacker && !(gAbsentBattlerFlags & gBitTable[gBattlerTarget])) // a valid target was found
             break;
+#endif
     ++gBattlescriptCurrInstr;
 }
 

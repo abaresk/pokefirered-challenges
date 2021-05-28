@@ -391,6 +391,7 @@ u8 GetBattlerPosition(u8 battlerId);
 u8 GetBattlerAtPosition(u8 position);
 bool8 IsBattlerSpritePresent(u8 battlerId);
 bool8 IsDoubleBattle(void);
+bool8 UseDoubleBattleCoords(u8 battlerId);
 void GetBattleAnimBg1Data(struct BattleAnimBgData *animBgData);
 void GetBattleAnimBgData(struct BattleAnimBgData *animBgData, u32 bgId);
 void GetBattleAnimBgDataByPriorityRank(struct BattleAnimBgData *animBgData, u8 unused);

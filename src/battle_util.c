@@ -220,11 +220,18 @@ void PrepareStringBattle(u16 stringId, u8 battler)
 void ResetSentPokesToOpponentValue(void)
 {
     s32 i;
+    u8 numBattlers;
     u32 bits = 0;
 
     gSentPokesToOpponent[0] = 0;
     gSentPokesToOpponent[1] = 0;
-    for (i = 0; i < gBattlersCount; i += 2)
+
+    numBattlers = gBattlersCount;
+    if (DoubleBattleNonMulti()) {
+        numBattlers = 2;
+    }
+
+    for (i = 0; i < numBattlers; i += 2)
         bits |= gBitTable[gBattlerPartyIndexes[i]];
     for (i = 1; i < gBattlersCount; i += 2)
         gSentPokesToOpponent[(i & BIT_FLANK) >> 1] = bits;
@@ -233,14 +240,20 @@ void ResetSentPokesToOpponentValue(void)
 void sub_8017434(u8 battler)
 {
     s32 i = 0;
+    u8 numBattlers;
     u32 bits = 0;
+
+    numBattlers = gBattlersCount;
+    if (DoubleBattleNonMulti()) {
+        numBattlers = 2;
+    }
 
     if (GetBattlerSide(battler) == B_SIDE_OPPONENT)
     {
         u8 flank = ((battler & BIT_FLANK) >> 1);
 
         gSentPokesToOpponent[flank] = 0;
-        for (i = 0; i < gBattlersCount; i += 2)
+        for (i = 0; i < numBattlers; i += 2)
             if (!(gAbsentBattlerFlags & gBitTable[i]))
                 bits |= gBitTable[gBattlerPartyIndexes[i]];
         gSentPokesToOpponent[flank] = bits;
@@ -1092,6 +1105,9 @@ bool8 HandleFaintedMonActions(void)
             ++gBattleStruct->faintedActionsState;
             for (i = 0; i < gBattlersCount; ++i)
             {
+                if (DoubleBattleNonMulti() && GetBattlerPosition(i) == B_POSITION_PLAYER_RIGHT) {
+                    continue;
+                }
                 if (gAbsentBattlerFlags & gBitTable[i] && !HasNoMonsToSwitch(i, 6, 6))
                     gAbsentBattlerFlags &= ~(gBitTable[i]);
             }
@@ -1495,6 +1511,21 @@ bool8 HasNoMonsToSwitch(u8 battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
                     break;
             }
             return (i == flankId * 3 + 3);
+        }
+        else if (DoubleBattleNonMulti() && GetBattlerSide(battler) == B_SIDE_PLAYER)
+        {
+            party = gPlayerParty;
+            playerId = GetBattlerPosition(B_POSITION_PLAYER_LEFT);
+
+            if (partyIdBattlerOn1 == PARTY_SIZE)
+                partyIdBattlerOn1 = gBattlerPartyIndexes[playerId];
+
+            for (i = 0; i < PARTY_SIZE; i++)
+            {
+                if (GetMonData(&party[i], MON_DATA_HP) != 0 && GetMonData(&party[i], MON_DATA_SPECIES2) != SPECIES_NONE && GetMonData(&party[i], MON_DATA_SPECIES2) != SPECIES_EGG && i != partyIdBattlerOn1 && i != gBattleStruct->monToSwitchIntoId[playerId])
+                    break;
+            }
+            return (i == PARTY_SIZE);
         }
         else
         {
@@ -3195,4 +3226,10 @@ u8 IsMonDisobedient(void)
             return 1;
         }
     }
+}
+
+bool8 DoubleBattleNonMulti(void)
+{
+    return (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) &&
+           !(gBattleTypeFlags & BATTLE_TYPE_MULTI);
 }

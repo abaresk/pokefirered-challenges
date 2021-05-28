@@ -1,3 +1,4 @@
+#include "config.h"
 #include "constants/moves.h"
 #include "constants/battle.h"
 #include "constants/battle_move_effects.h"
@@ -404,8 +405,10 @@ BattleScript_ExplosionLoop::
 	resultmessage
 	waitmessage 0x40
 	tryfaintmon BS_TARGET, 0, NULL
+#ifndef NO_TARGET_BOTH
 	moveendto 16
 	jumpifnexttargetvalid BattleScript_ExplosionLoop
+#endif
 	tryfaintmon BS_ATTACKER, 0, NULL
 	end
 
@@ -413,8 +416,10 @@ BattleScript_ExplosionMissed::
 	effectivenesssound
 	resultmessage
 	waitmessage 0x40
+#ifndef NO_TARGET_BOTH
 	moveendto 16
 	jumpifnexttargetvalid BattleScript_ExplosionLoop
+#endif
 	tryfaintmon BS_ATTACKER, 0, NULL
 	end
 
@@ -1690,7 +1695,9 @@ BattleScript_EffectMagnitude::
 	attackcanceler
 	attackstring
 	ppreduce
+#ifndef NO_TARGET_BOTH
 	selectfirstvalidtarget
+#endif
 	magnitudedamagecalculation
 	pause 0x20
 	printstring STRINGID_MAGNITUDESTRENGTH
@@ -1839,7 +1846,9 @@ BattleScript_EffectEarthquake::
 	attackcanceler
 	attackstring
 	ppreduce
+#ifndef NO_TARGET_BOTH
 	selectfirstvalidtarget
+#endif
 BattleScript_HitsAllWithUndergroundBonusLoop::
 	movevaluescleanup
 	jumpifnostatus3 BS_TARGET, STATUS3_UNDERGROUND, BattleScript_HitsAllNoUndergroundBonus
@@ -1870,8 +1879,10 @@ BattleScript_DoHitAllWithUndergroundBonus::
 	printstring STRINGID_EMPTYSTRING3
 	waitmessage 1
 	tryfaintmon BS_TARGET, 0, NULL
+#ifndef NO_TARGET_BOTH
 	moveendto 16
 	jumpifnexttargetvalid BattleScript_HitsAllWithUndergroundBonusLoop
+#endif
 	end
 
 BattleScript_HitAllWithUndergroundBonusMissed::
@@ -1880,8 +1891,10 @@ BattleScript_HitAllWithUndergroundBonusMissed::
 	effectivenesssound
 	resultmessage
 	waitmessage 0x40
+#ifndef NO_TARGET_BOTH
 	moveendto 16
 	jumpifnexttargetvalid BattleScript_HitsAllWithUndergroundBonusLoop
+#endif
 	end
 
 BattleScript_EffectFutureSight::
@@ -2580,11 +2593,15 @@ BattleScript_EffectTeeterDance::
 	attackcanceler
 	attackstring
 	ppreduce
+#ifndef NO_TARGET_BOTH
 	setbyte gBattlerTarget, 0
+#endif
 BattleScript_TeeterDanceLoop::
 	movevaluescleanup
 	setmoveeffect MOVE_EFFECT_CONFUSION
+#ifndef NO_TARGET_BOTH
 	jumpifbyteequal gBattlerAttacker, gBattlerTarget, BattleScript_TeeterDanceLoopIncrement
+#endif
 	jumpifability BS_TARGET, ABILITY_OWN_TEMPO, BattleScript_TeeterDanceOwnTempoPrevents
 	jumpifstatus2 BS_TARGET, STATUS2_SUBSTITUTE, BattleScript_TeeterDanceSubstitutePrevents
 	jumpifstatus2 BS_TARGET, STATUS2_CONFUSION, BattleScript_TeeterDanceAlreadyConfused
@@ -2596,9 +2613,11 @@ BattleScript_TeeterDanceLoop::
 	resultmessage
 	waitmessage 0x40
 BattleScript_TeeterDanceLoopIncrement::
+#ifndef NO_TARGET_BOTH
 	moveendto 16
 	addbyte gBattlerTarget, 1
 	jumpifbytenotequal gBattlerTarget, gBattlersCount, BattleScript_TeeterDanceLoop
+#endif
 	end
 
 BattleScript_TeeterDanceOwnTempoPrevents::
