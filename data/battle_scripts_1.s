@@ -1,4 +1,3 @@
-#include "config.h"
 #include "constants/moves.h"
 #include "constants/battle.h"
 #include "constants/battle_move_effects.h"

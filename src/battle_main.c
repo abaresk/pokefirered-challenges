@@ -2543,7 +2543,7 @@ static void BattleIntroDrawTrainersOrMonsSprites(void)
                 if (DoubleBattleNonMulti()) {
                     gAbsentBattlerFlags |= (1 << B_POSITION_PLAYER_RIGHT);
                 }
-                
+
                 if (GetBattlerPosition(gActiveBattler) == B_POSITION_OPPONENT_LEFT)
                 {
                     BtlController_EmitDrawTrainerPic(0);
@@ -3770,6 +3770,9 @@ static void HandleEndTurn_FinishBattle(void)
         {
             for (gActiveBattler = 0; gActiveBattler < gBattlersCount; ++gActiveBattler)
             {
+                if (DoubleBattleNonMulti() && GetBattlerPosition(gActiveBattler) == B_POSITION_PLAYER_RIGHT) {
+                    continue;
+                }
                 if (GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER)
                 {
                     if (gBattleResults.playerMon1Species == SPECIES_NONE)
