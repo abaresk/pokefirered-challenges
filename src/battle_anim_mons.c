@@ -2053,7 +2053,7 @@ void SetAverageBattlerPositions(u8 battlerId, bool8 respectMonPicOffsets, s16 *x
     }
     battlerX = GetBattlerSpriteCoord(battlerId, xCoordType);
     battlerY = GetBattlerSpriteCoord(battlerId, yCoordType);
-    if (IsDoubleBattle())
+    if (UseDoubleBattleCoords(battlerId))
     {
         partnerX = GetBattlerSpriteCoord(BATTLE_PARTNER(battlerId), xCoordType);
         partnerY = GetBattlerSpriteCoord(BATTLE_PARTNER(battlerId), yCoordType);
