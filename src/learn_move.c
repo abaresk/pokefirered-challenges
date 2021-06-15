@@ -513,7 +513,7 @@ static void MoveRelearnerStateMachine(void)
         switch (YesNoMenuProcessInput())
         {
         case 0:
-            if (GiveMoveToMon(&gPlayerParty[sMoveRelearner->selectedPartyMember], sMoveRelearner->learnableMoves[sMoveRelearner->selectedIndex]) != 0xFFFF)
+            if (GiveMoveToMon(&gPlayerParty[sMoveRelearner->selectedPartyMember], sMoveRelearner->learnableMoves[sMoveRelearner->selectedIndex], PLAYER_MAX_MON_MOVES) != 0xFFFF)
             {
                 StringExpandPlaceholdersAndPrintTextOnWindow7Color2(gText_MonLearnedMove);
                 gSpecialVar_0x8004 = TRUE;

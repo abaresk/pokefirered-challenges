@@ -4314,7 +4314,7 @@ static void sub_8124E48(void)
     if (ItemId_GetPocket(gSpecialVar_ItemId) == POCKET_TM_CASE
      && PSA_IsCancelDisabled() == TRUE)
     {
-        GiveMoveToMon(&gPlayerParty[gPartyMenu.slotId], ItemIdToBattleMoveId(gSpecialVar_ItemId));
+        GiveMoveToMon(&gPlayerParty[gPartyMenu.slotId], ItemIdToBattleMoveId(gSpecialVar_ItemId), PLAYER_MAX_MON_MOVES);
         AdjustFriendship(&gPlayerParty[gPartyMenu.slotId], FRIENDSHIP_EVENT_LEARN_TMHM);
         if (gSpecialVar_ItemId <= ITEM_TM50)
             RemoveBagItem(gSpecialVar_ItemId, 1);
@@ -4811,7 +4811,7 @@ void ItemUseCB_TMHM(u8 taskId, UNUSED TaskFunc func)
         DisplayLearnMoveMessageAndClose(taskId, gText_PkmnAlreadyKnows);
         return;
     }
-    if (GiveMoveToMon(mon, move[0]) != MON_HAS_MAX_MOVES)
+    if (GiveMoveToMon(mon, move[0], PLAYER_MAX_MON_MOVES) != MON_HAS_MAX_MOVES)
     {
         ItemUse_SetQuestLogEvent(QL_EVENT_USED_ITEM, mon, item, 0xFFFF);
         sub_8124DC0(taskId);
@@ -5445,7 +5445,7 @@ static void TryTutorSelectedMon(u8 taskId)
             DisplayLearnMoveMessageAndClose(taskId, gText_PkmnAlreadyKnows);
             return;
         default:
-            if (GiveMoveToMon(mon, gPartyMenu.data1) != MON_HAS_MAX_MOVES)
+            if (GiveMoveToMon(mon, gPartyMenu.data1, PLAYER_MAX_MON_MOVES) != MON_HAS_MAX_MOVES)
             {
                 Task_LearnedMove(taskId);
                 return;

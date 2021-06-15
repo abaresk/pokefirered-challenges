@@ -54,6 +54,9 @@ static void DrawLevelUpWindow2(void);
 static bool8 sub_8026648(void);
 static void PutMonIconOnLvlUpBox(void);
 static void PutLevelAndGenderOnLvlUpBox(void);
+static void EnsureOnlyOneMove_BattleMon(struct BattlePokemon *mon);
+static MovePP MostRecentMove_BattleMon(struct BattlePokemon *mon);
+static void SetMoveData_BattleMon(struct BattlePokemon *mon, MovePP *moves);
 
 static void SpriteCB_MonIconOnLvlUpBox(struct Sprite *sprite);
 
@@ -7124,10 +7127,49 @@ static void atk9B_transformdataexecution(void)
             else
                 gBattleMons[gBattlerAttacker].pp[i] = 5;
         }
+
+        if (GetBattlerSide(gBattlerAttacker) == B_SIDE_PLAYER) {
+            EnsureOnlyOneMove_BattleMon(&gBattleMons[gBattlerAttacker]);
+        }
+
         gActiveBattler = gBattlerAttacker;
         BtlController_EmitResetActionMoveSelection(0, RESET_MOVE_SELECTION);
         MarkBattlerForControllerExec(gActiveBattler);
         gBattleCommunication[MULTISTRING_CHOOSER] = 0;
+    }
+}
+
+static void EnsureOnlyOneMove_BattleMon(struct BattlePokemon *mon) {
+    u16 move;
+    MovePP moves[MAX_MON_MOVES] = {0};
+
+    moves[0] = MostRecentMove_BattleMon(mon);
+    SetMoveData_BattleMon(mon, moves);
+}
+
+static MovePP MostRecentMove_BattleMon(struct BattlePokemon *mon) {
+    s32 i;
+    u16 move;
+    u8 pp;
+    MovePP lastMove = {0};
+
+    for (i = 0; i < MAX_MON_MOVES; i++) {
+        move = mon->moves[i];
+        pp = mon->pp[i];
+        if (move == MOVE_NONE) {
+            break;
+        }
+        lastMove = (MovePP) { .move = move, .pp = pp };
+    }
+    return lastMove;
+}
+
+static void SetMoveData_BattleMon(struct BattlePokemon *mon, MovePP *moves) {
+    s32 i;
+
+    for (i = 0; i < MAX_MON_MOVES; i++) {
+        mon->moves[i] = moves[i].move;
+        mon->pp[i] = moves[i].pp;
     }
 }
 
