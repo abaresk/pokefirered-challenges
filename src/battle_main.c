@@ -25,11 +25,14 @@
 #include "party_menu.h"
 #include "pokeball.h"
 #include "pokedex.h"
+#include "pokemon_storage_system.h"
 #include "quest_log.h"
 #include "random.h"
 #include "roamer.h"
 #include "safari_zone.h"
 #include "scanline_effect.h"
+#include "script_pokemon_util.h"
+#include "steal_queue.h"
 #include "task.h"
 #include "trig.h"
 #include "vs_seeker.h"
@@ -41,6 +44,7 @@
 #include "constants/items.h"
 #include "constants/moves.h"
 #include "constants/pokemon.h"
+#include "constants/seeds.h"
 #include "constants/songs.h"
 #include "constants/trainer_classes.h"
 
@@ -68,6 +72,18 @@ static void CB2_InitBattleInternal(void);
 static void CB2_PreInitMultiBattle(void);
 static void CB2_HandleStartMultiBattle(void);
 static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum);
+static void TryStealMonFromPlayer(u16 trainerId, OpponentType type);
+static void StealFromParty(u32 trainerPersonality, Pokemon *dest, OpponentType type);
+static void StealFromBoxes(u32 trainerPersonality, Pokemon *dest);
+static void GiveMonToOpponent(Pokemon *mon, OpponentType type, u32 trainerPersonality);
+static void ReturnStolenItem(OpponentType type);
+static void GetMonToReturn(u32 trainerId, Pokemon *dest, OpponentType type, bool8 playerWon);
+static void GiveTrainerMonToPlayer(Pokemon *mon);
+static Pokemon *FavoritePartyMon(u32 trainerPersonality, u16 first, u16 last);
+static Pokemon *LeastFavoritePartyMon(u32 trainerPersonality, u16 first, u16 last);
+static void FavoriteBoxMon_iter(BoxPokemon *mon, void * data);
+static void LeastFavoriteBoxMon_iter(BoxPokemon *mon, void * data);
+static u32 GetTrainerPersonality(u16 trainerId);
 static void CB2_HandleStartBattle(void);
 static void TryCorrectShedinjaLanguage(struct Pokemon *mon);
 static void BattleMainCB1(void);
@@ -104,6 +120,7 @@ static void RunTurnActionsFunctions(void);
 static void SetActionsAndBattlersTurnOrder(void);
 static void CheckFocusPunch_ClearVarsBeforeTurnStarts(void);
 static void HandleEndTurn_FinishBattle(void);
+static Pokemon *FurthestPartyMon(u16 first, u16 last, OpponentType type);
 static void FreeResetData_ReturnToOvOrDoEvolutions(void);
 static void ReturnFromBattleToOverworld(void);
 static void TryEvolvePokemon(void);
@@ -225,6 +242,12 @@ u8 gHealthboxSpriteIds[MAX_BATTLERS_COUNT];
 u8 gMultiUsePlayerCursor;
 u8 gNumberOfMovesToChoose;
 u8 gBattleControllerData[MAX_BATTLERS_COUNT];
+
+typedef struct {
+    u32 trainerPersonality; // Immutable
+    BoxPokemon *mon;        // Mutable
+    u32 value;              // Mutable
+} BoxMonIter;
 
 static const struct ScanlineEffectParams sIntroScanlineParams16Bit =
 {
@@ -696,7 +719,33 @@ static void CB2_InitBattleInternal(void)
         SetMainCallback2(CB2_HandleStartBattle);
     if (!(gBattleTypeFlags & BATTLE_TYPE_LINK))
     {
-        CreateNPCTrainerParty(&gEnemyParty[0], gTrainerBattleOpponent_A);
+        // Create enemy party here
+        CreateNPCTrainerParty(&gEnemyParty[0], gTrainerBattleOpponent_A, TRUE);
+        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS)
+            CreateNPCTrainerParty(&gEnemyParty[4], gTrainerBattleOpponent_B, FALSE);
+
+        // Backup trainer's original party
+        for (i = 0; i < OPPONENT_PARTY_SIZE; i++) {
+            gEnemyPartyOriginal[i] = gEnemyParty[i];
+        }
+
+        // Reset steal mons
+        for (i = 0; i < 2; i++) {
+            gStolenMons[i] = (StolenMon) {0};
+            gStolenMons[i].queueIndex = 0xFFFF;
+        }
+
+        // Steal mons from player
+        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS) {
+            TryStealMonFromPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT);
+            TryStealMonFromPlayer(gTrainerBattleOpponent_B, SECOND_OPPONENT);
+        } else if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) {
+            TryStealMonFromPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT);
+            TryStealMonFromPlayer(gTrainerBattleOpponent_A, SECOND_OPPONENT);
+        } else if (gBattleTypeFlags & BATTLE_TYPE_TRAINER) {
+            TryStealMonFromPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT);
+        }
+
         SetWildMonHeldItem();
     }
     gMain.inBattle = TRUE;
@@ -1532,23 +1581,18 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
         for (i = 0; i < gTrainers[trainerNum].partySize; ++i)
         {
 
-            if (gTrainers[trainerNum].doubleBattle == TRUE)
-                personalityValue = 0x80;
-            else if (gTrainers[trainerNum].encounterMusic_gender & 0x80)
-                personalityValue = 0x78;
+            personalityValue =
+                AdvanceSeed32(SeedGet(SEED_TRAINER_MON_A), trainerNum) ^
+                AdvanceSeed32(SeedGet(SEED_TRAINER_MON_B), i);
+            if (gTrainers[trainerNum].encounterMusic_gender & 0x80)
+                personalityValue &= ~0x80;
             else
-                personalityValue = 0x88;
-            for (j = 0; gTrainers[trainerNum].trainerName[j] != EOS; ++j)
-                nameHash += gTrainers[trainerNum].trainerName[j];
+                personalityValue |= 0x80;
             switch (gTrainers[trainerNum].partyFlags)
             {
             case 0:
             {
                 const struct TrainerMonNoItemDefaultMoves *partyData = gTrainers[trainerNum].party.NoItemDefaultMoves;
-
-                for (j = 0; gSpeciesNames[partyData[i].species][j] != EOS; ++j)
-                    nameHash += gSpeciesNames[partyData[i].species][j];
-                personalityValue += nameHash << 8;
                 fixedIV = partyData[i].iv * 31 / 255;
                 CreateMon(&party[i], partyData[i].species, partyData[i].lvl, fixedIV, TRUE, personalityValue, OT_ID_RANDOM_NO_SHINY, 0);
                 break;
@@ -1556,10 +1600,6 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
             case F_TRAINER_PARTY_CUSTOM_MOVESET:
             {
                 const struct TrainerMonNoItemCustomMoves *partyData = gTrainers[trainerNum].party.NoItemCustomMoves;
-
-                for (j = 0; gSpeciesNames[partyData[i].species][j] != EOS; ++j)
-                    nameHash += gSpeciesNames[partyData[i].species][j];
-                personalityValue += nameHash << 8;
                 fixedIV = partyData[i].iv * 31 / 255;
                 CreateMon(&party[i], partyData[i].species, partyData[i].lvl, fixedIV, TRUE, personalityValue, OT_ID_RANDOM_NO_SHINY, 0);
                 for (j = 0; j < MAX_MON_MOVES; ++j)
@@ -1572,10 +1612,6 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
             case F_TRAINER_PARTY_HELD_ITEM:
             {
                 const struct TrainerMonItemDefaultMoves *partyData = gTrainers[trainerNum].party.ItemDefaultMoves;
-
-                for (j = 0; gSpeciesNames[partyData[i].species][j] != EOS; ++j)
-                    nameHash += gSpeciesNames[partyData[i].species][j];
-                personalityValue += nameHash << 8;
                 fixedIV = partyData[i].iv * 31 / 255;
                 CreateMon(&party[i], partyData[i].species, partyData[i].lvl, fixedIV, TRUE, personalityValue, OT_ID_RANDOM_NO_SHINY, 0);
 
@@ -1585,10 +1621,6 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
             case F_TRAINER_PARTY_CUSTOM_MOVESET | F_TRAINER_PARTY_HELD_ITEM:
             {
                 const struct TrainerMonItemCustomMoves *partyData = gTrainers[trainerNum].party.ItemCustomMoves;
-
-                for (j = 0; gSpeciesNames[partyData[i].species][j] != EOS; ++j)
-                    nameHash += gSpeciesNames[partyData[i].species][j];
-                personalityValue += nameHash << 8;
                 fixedIV = partyData[i].iv * 31 / 255;
                 CreateMon(&party[i], partyData[i].species, partyData[i].lvl, fixedIV, TRUE, personalityValue, OT_ID_RANDOM_NO_SHINY, 0);
                 SetMonData(&party[i], MON_DATA_HELD_ITEM, &partyData[i].heldItem);
@@ -1604,6 +1636,309 @@ static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
         gBattleTypeFlags |= gTrainers[trainerNum].doubleBattle;
     }
     return gTrainers[trainerNum].partySize;
+}
+
+static void TryStealMonFromPlayer(u16 trainerId, OpponentType type) {
+    Pokemon mon;
+    u32 trainerPersonality = GetTrainerPersonality(trainerId);
+
+    if (!PlayerHasMoreThanOneMon()) return;
+
+    StealFromParty(trainerPersonality, &mon, type);
+    HealPokemon(&mon);
+    GiveMonToOpponent(&mon, type, trainerPersonality);
+}
+
+static void StealFromParty(u32 trainerPersonality, Pokemon *dest, OpponentType type) {
+    Pokemon *mon;
+    u16 first = 0; u16 last = PARTY_SIZE;
+    u16 partyMonIds[PARTY_SIZE] = {0};
+    ValueIndex furthest;
+    u16 slot;
+    u16 monId;
+    u8 data;
+
+    if (gBattleTypeFlags & BATTLE_TYPE_INGAME_PARTNER) {
+        first = type == FIRST_OPPONENT ? 0              : PARTY_SIZE / 2;
+        last = type == FIRST_OPPONENT  ? PARTY_SIZE / 2 : PARTY_SIZE;
+    }
+
+    #ifdef STEAL_FROM_QUEUE
+    mon = FurthestPartyMon(first, last, type);
+    #else
+    mon = FavoritePartyMon(trainerPersonality, first, last);
+    #endif
+
+    // Copy mon data
+    *dest = *mon;
+
+    // Remove monId from steal queue
+    monId = GetMonData(mon, MON_DATA_ID, &data);
+
+    // Store stolen mon and its queue index in case we return to player
+    slot = type == SECOND_OPPONENT ? 1 : 0;
+    gStolenMons[slot].mon = *mon;
+    gStolenMons[slot].queueIndex = Queue_IndexOf(&gSaveBlock2Ptr->stealQueue, monId);
+
+    Queue_Remove(&gSaveBlock2Ptr->stealQueue, monId);
+
+    // Remove mon from party
+    ZeroMonData(mon);
+    CompactPlayerPartySlots(gPlayerParty, first, last);
+    CalculatePlayerPartyCount();
+}
+
+static void StealFromBoxes(u32 trainerPersonality, Pokemon *dest) {
+    BoxPokemon *mon;
+    BoxMonIter iter = {
+        .trainerPersonality = trainerPersonality,
+        .mon = NULL,
+        .value = 0
+    };
+
+    // Pick a mon
+    BoxMons_ForEach(FavoriteBoxMon_iter, &iter);
+    mon = iter.mon;
+
+    // Copy mon data
+    BoxMonToMon(mon, dest);
+
+    // Remove mon from box
+    ZeroBoxMonData(mon);
+}
+
+// gEnemyParty has already been initialized
+static void GiveMonToOpponent(Pokemon *mon, OpponentType type, u32 trainerPersonality) {
+    u16 numSlots;
+    u16 startingSlot;
+    u16 insertSlot;
+    s16 finalSlot;
+    u16 newSlot;
+
+    if (mon == NULL) return;
+
+    numSlots = (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS) ? OPPONENT_PARTY_SIZE / 2 : OPPONENT_PARTY_SIZE;
+    startingSlot = (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS && type == SECOND_OPPONENT) ? OPPONENT_PARTY_SIZE / 2 : 0;
+    insertSlot = startingSlot + numSlots;
+
+    gEnemyParty[insertSlot - 1] = *mon;
+    finalSlot = CompactEnemyPartySlots(type);
+
+    // Shuffle new Pokémon into a random spot in compacted party.
+    newSlot = startingSlot + trainerPersonality % (finalSlot - startingSlot);
+    SwapPartyPokemon(&gEnemyParty[newSlot], &gEnemyParty[finalSlot - 1]);
+
+    CalculateEnemyPartyCount();
+}
+
+void TryReturnMonToPlayer(u32 trainerId, OpponentType type, bool8 playerWon) {
+    Pokemon mon;
+
+    if (!FlagGet(FLAG_SYS_POKEDEX_GET)) return;
+
+    #ifdef RETURN_ITEMS
+    if (playerWon) {
+        ReturnStolenItem(type);
+    }
+    #endif
+
+    #ifndef REPLACE_MONS
+    if (playerWon) return;
+    #endif
+
+    GetMonToReturn(trainerId, &mon, type, playerWon);
+    HealPokemon(&mon);
+    GiveTrainerMonToPlayer(&mon);    
+}
+
+static void ReturnStolenItem(OpponentType type) {
+    Pokemon *mon;
+    u16 slot;
+    u16 itemId;
+
+    slot = type == SECOND_OPPONENT ? 1 : 0;
+    mon = &gStolenMons[slot].mon;
+
+    itemId = GetMonData(mon, MON_DATA_HELD_ITEM, 0);
+
+    AddItemToBagOrPC(itemId);
+}
+
+static void GetMonToReturn(u32 trainerId, Pokemon *dest, OpponentType type, bool8 playerWon) {
+    Pokemon *mon;
+    u32 trainerPersonality = GetTrainerPersonality(trainerId);
+    u16 first = 0; u16 last = OPPONENT_PARTY_SIZE;
+    u8 otGender;
+    u16 slot;
+    u8 data;
+    u16 monId;
+    u16 queueIndex;
+    bool8 returnStolenMon = FALSE;
+
+    if (gBattleTypeFlags & BATTLE_TYPE_INGAME_PARTNER) {
+        first = type == FIRST_OPPONENT ? 0                       : OPPONENT_PARTY_SIZE / 2;
+        last = type == FIRST_OPPONENT  ? OPPONENT_PARTY_SIZE / 2 : OPPONENT_PARTY_SIZE;
+    }
+
+    mon = LeastFavoritePartyMon(trainerPersonality, first, last);
+    SetMonData(mon, MON_DATA_OT_NAME, gTrainers[trainerId].trainerName);
+    otGender = (gTrainers[trainerId].encounterMusic_gender & F_TRAINER_FEMALE) >> 7;
+    SetMonData(mon, MON_DATA_OT_GENDER, &otGender);
+
+    // Return trainer's original mon if they lost. Otherwise, there's still a
+    // small chance (1/32) that the trainer returns the original mon anyway.
+    if (!playerWon || Random() % 32 == 0) {
+        slot = type == SECOND_OPPONENT ? 1 : 0;
+        mon = &gStolenMons[slot].mon;
+        monId = GetMonData(mon, MON_DATA_ID, &data);
+        queueIndex = gStolenMons[slot].queueIndex;
+
+        // This will restore the queue to the correct order in double battles.
+        if (type == FIRST_OPPONENT && gStolenMons[1].queueIndex != 0xFFFF &&
+            gStolenMons[slot].queueIndex > gStolenMons[1].queueIndex) {
+                queueIndex--;
+            }
+        if (type == SECOND_OPPONENT && gStolenMons[0].queueIndex != 0xFFFF &&
+            gStolenMons[slot].queueIndex >= gStolenMons[0].queueIndex) {
+                queueIndex++;
+            }
+        returnStolenMon = TRUE;
+    }
+
+    if (!returnStolenMon) {
+        // Assign mon a new monId and add to queue
+        monId = MonCounterIncr();
+        SetMonData(mon, MON_DATA_ID, &monId);
+        PlaceMonInStealQueue(monId);
+    } else {
+        // Add mon back where it previously was in queue
+        Queue_InsertAt(&gSaveBlock2Ptr->stealQueue, monId, queueIndex);
+    }
+
+    // Copy mon data
+    *dest = *mon;
+
+    // Remove mon from party
+    ZeroMonData(mon);
+}
+
+static void GiveTrainerMonToPlayer(Pokemon *mon) {
+    u16 slot;
+
+    if (mon == NULL) return;
+
+    slot = (gBattleTypeFlags & BATTLE_TYPE_INGAME_PARTNER) ?
+           PARTY_SIZE / 2 - 1 : PARTY_SIZE - 1;
+
+    gPlayerParty[slot] = *mon;
+    CompactPlayerPartySlots();
+    CalculatePlayerPartyCount();
+}
+
+static Pokemon *FavoritePartyMon(u32 trainerPersonality, u16 first, u16 last) {
+    u32 bestValue = 0;
+    Pokemon *bestMon = NULL;
+    s32 i;
+    u32 value;
+
+    for (i = first; i < last; i++) {
+        Pokemon *mon = &gPlayerParty[i];
+        if (GetMonData(mon, MON_DATA_SPECIES, NULL) == SPECIES_NONE ||
+            GetMonData(mon, MON_DATA_SPECIES2, NULL) == SPECIES_EGG) {
+                continue;
+            }
+        value = GetMonData(mon, MON_DATA_PERSONALITY, NULL) ^ trainerPersonality;
+        if (value > bestValue) {
+            bestValue = value;
+            bestMon = mon;
+        }
+    }
+
+    return bestMon;
+}
+
+static Pokemon *LeastFavoritePartyMon(u32 trainerPersonality, u16 first, u16 last) {
+    u32 worstValue = -1;
+    Pokemon *worstMon = NULL;
+    s32 i;
+    u32 value;
+
+    for (i = first; i < last; i++) {
+        Pokemon *mon = &gEnemyPartyOriginal[i];
+        if (GetMonData(mon, MON_DATA_SPECIES, NULL) == SPECIES_NONE ||
+            GetMonData(mon, MON_DATA_SPECIES2, NULL) == SPECIES_EGG) {
+                continue;
+            }
+        value = GetMonData(mon, MON_DATA_PERSONALITY, NULL) ^ trainerPersonality;
+        if (value < worstValue) {
+            worstValue = value;
+            worstMon = mon;
+        }
+    }
+
+    return worstMon;
+}
+
+static void FavoriteBoxMon_iter(BoxPokemon *mon, void * data) {
+    BoxMonIter *iter = (BoxMonIter *) data;
+
+    u32 value = GetBoxMonData(mon, MON_DATA_PERSONALITY) ^ iter->trainerPersonality;
+    if (value > iter->value) {
+        iter->mon = mon;
+        iter->value = value;
+    }
+}
+
+static void LeastFavoriteBoxMon_iter(BoxPokemon *mon, void * data) {
+    BoxMonIter *iter = (BoxMonIter *) data;
+
+    u32 value = GetBoxMonData(mon, MON_DATA_PERSONALITY) ^ iter->trainerPersonality;
+    if (value < iter->value) {
+        iter->mon = mon;
+        iter->value = value;
+    }
+}
+
+static Pokemon *FurthestPartyMon(u16 first, u16 last, OpponentType type) {
+    u16 furthestMonId;
+    s32 i;
+    Pokemon *mon;
+    u8 data;
+
+    if (gBattleTypeFlags & BATTLE_TYPE_INGAME_PARTNER && type == SECOND_OPPONENT) {
+        return &gPlayerParty[first];
+    }
+
+    furthestMonId = FurthestPartyMonId(first, last);
+    for (i = 0; i < PARTY_SIZE; i++) {
+        if (GetMonData(&gPlayerParty[i], MON_DATA_ID, &data) == furthestMonId) {
+            mon = &gPlayerParty[i];
+            break;
+        }
+    }
+    return mon;
+}
+
+// Returns monId of furthest mon in party in the given slot range.
+u16 FurthestPartyMonId(u16 first, u16 last) {
+    s32 i;
+    u16 partyMonIds[PARTY_SIZE] = {0};
+    ValueIndex furthest;
+    u8 data;
+
+    for (i = first; i < last; i++) {
+        if (GetMonData(&gPlayerParty[i], MON_DATA_SPECIES, NULL) == SPECIES_NONE ||
+            GetMonData(&gPlayerParty[i], MON_DATA_SPECIES2, NULL) == SPECIES_EGG) {
+                continue;
+            }
+        partyMonIds[i] = GetMonData(&gPlayerParty[i], MON_DATA_ID, &data);
+    }
+    furthest = Queue_FurthestInLine(&gSaveBlock2Ptr->stealQueue, partyMonIds, PARTY_SIZE);
+    return furthest.value;
+}
+
+static u32 GetTrainerPersonality(u16 trainerId) {
+    return AdvanceSeed32(SeedGet(SEED_TRAINER_PERSONALITY), trainerId);
 }
 
 // not used
@@ -2229,8 +2564,8 @@ static void BattleStartClearSetData(void)
         *(i + 2 * 8 + (u8 *)(gBattleStruct->lastTakenMoveFrom) + 0) = 0;
         *(i + 3 * 8 + (u8 *)(gBattleStruct->lastTakenMoveFrom) + 0) = 0;
     }
-    *(gBattleStruct->AI_monToSwitchIntoId + 0) = PARTY_SIZE;
-    *(gBattleStruct->AI_monToSwitchIntoId + 1) = PARTY_SIZE;
+    *(gBattleStruct->AI_monToSwitchIntoId + 0) = OPPONENT_PARTY_SIZE;
+    *(gBattleStruct->AI_monToSwitchIntoId + 1) = OPPONENT_PARTY_SIZE;
     *(&gBattleStruct->givenExpMons) = 0;
     for (i = 0; i < 11; ++i)
         gBattleResults.catchAttempts[i] = 0;
@@ -2802,7 +3137,7 @@ static void TryDoEventsBeforeFirstTurn(void)
             ;
         for (i = 0; i < MAX_BATTLERS_COUNT; ++i)
         {
-            *(gBattleStruct->monToSwitchIntoId + i) = PARTY_SIZE;
+            *(gBattleStruct->monToSwitchIntoId + i) = OPPONENT_PARTY_SIZE;
             gChosenActionByBattler[i] = B_ACTION_NONE;
             gChosenMoveByBattler[i] = MOVE_NONE;
         }
@@ -2894,7 +3229,7 @@ void BattleTurnPassed(void)
         gChosenMoveByBattler[i] = MOVE_NONE;
     }
     for (i = 0; i < MAX_BATTLERS_COUNT; ++i)
-        *(gBattleStruct->monToSwitchIntoId + i) = PARTY_SIZE;
+        *(gBattleStruct->monToSwitchIntoId + i) = OPPONENT_PARTY_SIZE;
     *(&gBattleStruct->absentBattlerFlags) = gAbsentBattlerFlags;
     gBattleMainFunc = HandleTurnActionSelectionState;
     gRandomTurnNumber = Random();
@@ -3007,7 +3342,7 @@ static void HandleTurnActionSelectionState(void)
         switch (gBattleCommunication[gActiveBattler])
         {
         case STATE_BEFORE_ACTION_CHOSEN: // Choose an action.
-            *(gBattleStruct->monToSwitchIntoId + gActiveBattler) = PARTY_SIZE;
+            *(gBattleStruct->monToSwitchIntoId + gActiveBattler) = OPPONENT_PARTY_SIZE;
             if (gBattleTypeFlags & BATTLE_TYPE_MULTI
              || (position & BIT_FLANK) == B_FLANK_LEFT
              || gBattleStruct->absentBattlerFlags & gBitTable[GetBattlerAtPosition(BATTLE_PARTNER(position))]

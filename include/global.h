@@ -6,8 +6,10 @@
 #include <string.h>
 #include "constants/global.h"
 #include "constants/flags.h"
+#include "constants/seeds.h"
 #include "constants/vars.h"
 #include "constants/species.h"
+#include "global.steal_queue.h"
 
 // Prevent cross-jump optimization.
 #define BLOCK_CROSS_JUMP asm("");
@@ -291,6 +293,8 @@ struct SaveBlock2
     /*0xB10*/ struct BerryPickingResults berryPick;
     /*0xB20*/ u8 filler_B20[0x400];
     /*0xF20*/ u32 encryptionKey;
+    /*0xF2C*/ u16 monsCaught;
+    /*0xF2E*/ StealQueue stealQueue;
 }; // size: 0xF24
 
 extern struct SaveBlock2 *gSaveBlock2Ptr;
@@ -794,6 +798,7 @@ struct SaveBlock1
     /*0x08E0*/ struct ObjectEventTemplate objectEventTemplates[64];
     /*0x0EE0*/ u8 flags[NUM_FLAG_BYTES];
     /*0x1000*/ u16 vars[VARS_COUNT];
+    /*0x139C*/ u32 seeds[SEEDS_COUNT];    
     /*0x1200*/ u32 gameStats[NUM_GAME_STATS];
     /*0x1300*/ struct QuestLog questLog[QUEST_LOG_SCENE_COUNT];
     /*0x2CA0*/ u16 easyChatProfile[6];

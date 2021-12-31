@@ -1,6 +1,8 @@
 #include "global.h"
 #include "gflib.h"
+#include "battle.h"
 #include "pokemon_storage_system_internal.h"
+#include "steal_queue.h"
 
 void BackupPokemonStorage(struct PokemonStorage * dest)
 {

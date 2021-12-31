@@ -138,6 +138,9 @@ TrainerTower_Lobby_EventScript_MartClerk:: @ 8164992
 TrainerTower_Lobby_Mart_Items:: @ 81649B8
 	.2byte ITEM_ULTRA_BALL
 	.2byte ITEM_GREAT_BALL
+#ifdef SCALING_POKE_BALL_MULTIPLIER
+	.2byte ITEM_POKE_BALL
+#endif
 	.2byte ITEM_FULL_RESTORE
 	.2byte ITEM_MAX_POTION
 	.2byte ITEM_HYPER_POTION

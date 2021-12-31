@@ -1083,6 +1083,7 @@ static void Cmd_count_alive_pokemon(void)
     u8 battlerOnField1, battlerOnField2;
     struct Pokemon *party;
     s32 i;
+    s32 partySize;
 
     AI_THINKING_STRUCT->funcResult = 0;
 
@@ -1091,10 +1092,14 @@ static void Cmd_count_alive_pokemon(void)
     else
         battlerId = gBattlerTarget;
 
-    if (GetBattlerSide(battlerId) == B_SIDE_PLAYER)
+    if (GetBattlerSide(battlerId) == B_SIDE_PLAYER) {
         party = gPlayerParty;
-    else
+        partySize = PARTY_SIZE;
+    }
+    else {
         party = gEnemyParty;
+        partySize = OPPONENT_PARTY_SIZE;
+    }
 
     if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE)
     {
@@ -1109,7 +1114,7 @@ static void Cmd_count_alive_pokemon(void)
         battlerOnField2 = gBattlerPartyIndexes[battlerId];
     }
 
-    for (i = 0; i < PARTY_SIZE; i++)
+    for (i = 0; i < partySize; i++)
     {
         if (i != battlerOnField1 && i != battlerOnField2
          && GetMonData(&party[i], MON_DATA_HP) != 0
@@ -1287,6 +1292,7 @@ static void Cmd_if_status_in_party(void)
     struct Pokemon *partyPtr;
     int i;
     u32 statusToCompareTo;
+    s32 partySize;
     // u8 battlerId
 
     // for whatever reason, game freak put the party pointer into 2 variables instead of 1
@@ -1295,9 +1301,11 @@ static void Cmd_if_status_in_party(void)
     {
     case 1:
         party = partyPtr = gEnemyParty;
+        partySize = OPPONENT_PARTY_SIZE;
         break;
     default:
         party = partyPtr = gPlayerParty;
+        partySize = PARTY_SIZE;
         break;
     }
 
@@ -1317,7 +1325,7 @@ static void Cmd_if_status_in_party(void)
 
     statusToCompareTo = T1_READ_32(sAIScriptPtr + 2);
 
-    for (i = 0; i < PARTY_SIZE; i++)
+    for (i = 0; i < partySize; i++)
     {
         u16 species = GetMonData(&party[i], MON_DATA_SPECIES);
         u16 hp = GetMonData(&party[i], MON_DATA_HP);
@@ -1340,21 +1348,24 @@ static void Cmd_if_status_not_in_party(void)
     struct Pokemon *partyPtr;
     int i;
     u32 statusToCompareTo;
+    s32 partySize;
     //u8 battlerId
 
     switch (sAIScriptPtr[1])
     {
     case 1:
         party = partyPtr = gEnemyParty;
+        partySize = OPPONENT_PARTY_SIZE;
         break;
     default:
         party = partyPtr = gPlayerParty;
+        partySize = PARTY_SIZE;
         break;
     }
 
     statusToCompareTo = T1_READ_32(sAIScriptPtr + 2);
 
-    for (i = 0; i < PARTY_SIZE; i++)
+    for (i = 0; i < partySize; i++)
     {
         u16 species = GetMonData(&party[i], MON_DATA_SPECIES);
         u16 hp = GetMonData(&party[i], MON_DATA_HP);

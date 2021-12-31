@@ -31,6 +31,7 @@ static void PlaceMon(void);
 static void SetMovedMonData(u8 boxId, u8 cursorPos);
 static void SetPlacedMonData(u8 boxId, u8 cursorPos);
 static void PurgeMonOrBoxMon(u8 boxId, u8 cursorPos);
+static void RemoveReleasedMonFromQueue(u8 boxId, u8 position);
 static void SetShiftedMonData(u8 boxId, u8 cursorPos);
 static void sub_8093A10(void);
 static void SetCursorMonData(void * cursorMon, u8 mode);
@@ -614,10 +615,25 @@ static void SetPlacedMonData(u8 boxId, u8 position)
 
 static void PurgeMonOrBoxMon(u8 boxId, u8 position)
 {
-    if (boxId == TOTAL_BOXES_COUNT)
+    if (boxId == TOTAL_BOXES_COUNT) {
         ZeroMonData(&gPlayerParty[position]);
-    else
+    }
+    else {
         ZeroBoxMonAt(boxId, position);
+    }
+}
+
+static void RemoveReleasedMonFromQueue(u8 boxId, u8 position) {
+    u8 data;
+    u16 monId;
+
+    monId = boxId == TOTAL_BOXES_COUNT ? 
+            GetMonData(&gPlayerParty[position], MON_DATA_ID, &data) :
+            GetBoxMonDataAt(boxId, position, MON_DATA_ID);
+
+    if (monId != 0) {
+        Queue_Remove(&gSaveBlock2Ptr->stealQueue, monId);
+    }
 }
 
 static void SetShiftedMonData(u8 boxId, u8 position)
@@ -710,6 +726,7 @@ void ReleaseMon(void)
         else
             boxId = StorageGetCurrentBox();
 
+        RemoveReleasedMonFromQueue(boxId, sCursorPosition);
         PurgeMonOrBoxMon(boxId, sBoxCursorPosition);
     }
     sub_8093A10();
@@ -887,18 +904,37 @@ void sub_80937B4(void)
 
 // file boundary maybe?
 
-s16 CompactPartySlots(void)
+s16 CompactPlayerPartySlots(void)
 {
+    return CompactPartySlots(gPlayerParty, 0, PARTY_SIZE);
+}
+
+s16 CompactEnemyPartySlots(OpponentType type) {
+
+    if (!(gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS)) {
+        return CompactPartySlots(gEnemyParty, 0, OPPONENT_PARTY_SIZE);
+    }
+
+    if (type == FIRST_OPPONENT) {
+        return CompactPartySlots(gEnemyParty, 0, OPPONENT_PARTY_SIZE / 2);
+    } else {
+        return CompactPartySlots(gEnemyParty, OPPONENT_PARTY_SIZE / 2, OPPONENT_PARTY_SIZE);
+    }
+}
+
+// Return the index after the final mon (post-compaction). 
+s16 CompactPartySlots(Pokemon *party, u16 firstSlot, u16 lastSlot) {
     s16 retVal = -1;
     u16 i, last;
 
-    for (i = 0, last = 0; i < PARTY_SIZE; i++)
+    i = firstSlot; last = firstSlot;
+    for (; i < lastSlot; i++)
     {
-        u16 species = GetMonData(gPlayerParty + i, MON_DATA_SPECIES);
+        u16 species = GetMonData(&party[i], MON_DATA_SPECIES);
         if (species != SPECIES_NONE)
         {
             if (i != last)
-                gPlayerParty[last] = gPlayerParty[i];
+                party[last] = party[i];
             last++;
         }
         else if (retVal == -1)
@@ -906,8 +942,10 @@ s16 CompactPartySlots(void)
             retVal = i;
         }
     }
-    for (; last < PARTY_SIZE; last++)
-        ZeroMonData(gPlayerParty + last);
+
+    retVal = last;
+    for (; last < lastSlot; last++)
+        ZeroMonData(&party[last]);
 
     return retVal;
 }

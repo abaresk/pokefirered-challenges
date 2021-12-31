@@ -128,6 +128,7 @@ void AgbMain()
     *(vu16 *)BG_PLTT = RGB_WHITE;
     InitGpuRegManager();
     REG_WAITCNT = WAITCNT_PREFETCH_ENABLE | WAITCNT_WS0_S_1 | WAITCNT_WS0_N_3;
+    EnableTimerRNG();    
     InitKeys();
     InitIntrHandlers();
     m4aSoundInit();
@@ -233,14 +234,19 @@ void SetMainCallback2(MainCallback callback)
 
 void StartTimer1(void)
 {
+    // Prescalar selection set to F, where F = System Clock (16.78MHz).
     REG_TM1CNT_H = 0x80;
+}
+
+void StartTimer2(void) {
+    // Prescalar selection set to F/64, where F = System Clock (16.78MHz).
+    REG_TM2CNT_H = 0x81;
 }
 
 void SeedRngAndSetTrainerId(void)
 {
     u16 val = REG_TM1CNT_L;
     SeedRng(val);
-    REG_TM1CNT_H = 0;
     gTrainerId = val;
 }
 

@@ -15,6 +15,10 @@ FourIsland_Mart_EventScript_Clerk:: @ 8171CAE
 	.align 2
 FourIsland_Mart_Items:: @ 8171CD4
 	.2byte ITEM_ULTRA_BALL
+#ifdef SCALING_POKE_BALL_MULTIPLIER
+	.2byte ITEM_GREAT_BALL
+	.2byte ITEM_POKE_BALL
+#endif
 	.2byte ITEM_FULL_RESTORE
 	.2byte ITEM_MAX_POTION
 	.2byte ITEM_REVIVE

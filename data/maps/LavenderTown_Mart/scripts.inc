@@ -27,6 +27,9 @@ LavenderTown_Mart_EventScript_Clerk:: @ 816B36B
 	.align 2
 LavenderTown_Mart_Items:: @ 816B390
 	.2byte ITEM_GREAT_BALL
+#ifdef SCALING_POKE_BALL_MULTIPLIER
+	.2byte ITEM_POKE_BALL
+#endif
 	.2byte ITEM_SUPER_POTION
 	.2byte ITEM_REVIVE
 	.2byte ITEM_ANTIDOTE

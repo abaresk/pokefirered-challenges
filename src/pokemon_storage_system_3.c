@@ -91,7 +91,7 @@ static void sub_808F974(void);
 static void sub_808F99C(void);
 static void sub_808F9FC(void);
 static void sub_808FA30(u8 pos, bool8 isPartyMon);
-static void sub_808FAA8(void);
+static void UpdatePartySlotColors(void);
 static void SetUpDoShowPartyMenu(void);
 static bool8 DoShowPartyMenu(void);
 static void sub_808FB68(void);
@@ -137,6 +137,15 @@ static const u16 gUnknown_83CE7D8[] = {
     0x1153, 0x1154, 0x1154, 0x1155,
     0x1163, 0x1164, 0x1164, 0x1165,
 };
+
+static const u16 sPartySlotNextStolen_Tilemap[] =
+{
+    0xF190, 0xF191, 0xF191, 0xF192, 0xF193, 0xF194, 0xF194, 0xF195, 0xF196, 0xF197, 0xF197, 0xF198,
+};
+
+static const u16 sMenuStolen_Pal[] = INCBIN_U16("graphics/interface/menu_stolen.gbapal");
+static const u8 sMenuStolen_Gfx[] = INCBIN_U8("graphics/interface/menu_stolen.4bpp.lz");
+const u32 sMenuStolen_Tilemap[] = INCBIN_U32("graphics/interface/menu_stolen.bin.lz");
 
 static const u16 gUnknown_83CE7F0[] = INCBIN_U16("graphics/interface/pss_unk_83CE810.gbapal");
 static const u16 gUnknown_83CE810[] = INCBIN_U16("graphics/interface/pss_unk_83CE810.4bpp");
@@ -1109,6 +1118,9 @@ static void Cb_ShiftMon(u8 taskId)
     case 1:
         if (!DoMonPlaceChange())
         {
+            if (sInPartyMenu) {
+                UpdatePartySlotColors();
+            }
             BoxSetMosaic();
             SetPSSCallback(Cb_MainPSS);
         }
@@ -1159,7 +1171,7 @@ static void Cb_WithdrawMon(u8 taskId)
     case 4:
         if (!DoMonPlaceChange())
         {
-            sub_808FAA8();
+            UpdatePartySlotColors();
             gPSSData->state++;
         }
         break;
@@ -1213,7 +1225,7 @@ static void Cb_DepositMenu(u8 taskId)
         }
         break;
     case 2:
-        CompactPartySlots();
+        CompactPlayerPartySlots();
         sub_80909F4();
         gPSSData->state++;
         break;
@@ -1222,7 +1234,7 @@ static void Cb_DepositMenu(u8 taskId)
         {
             sub_8093174();
             BoxSetMosaic();
-            sub_808FAA8();
+            UpdatePartySlotColors();
             SetPSSCallback(Cb_MainPSS);
         }
         break;
@@ -1300,7 +1312,7 @@ static void Cb_ReleaseMon(u8 taskId)
             ClearBottomWindow();
             if (sInPartyMenu)
             {
-                CompactPartySlots();
+                CompactPlayerPartySlots();
                 sub_80909F4();
                 gPSSData->state++;
             }
@@ -1315,7 +1327,7 @@ static void Cb_ReleaseMon(u8 taskId)
         {
             sub_8092F54();
             BoxSetMosaic();
-            sub_808FAA8();
+            UpdatePartySlotColors();
             gPSSData->state++;
         }
         break;
@@ -1660,14 +1672,14 @@ static void Cb_HandleMovingMonFromParty(u8 taskId)
     switch (gPSSData->state)
     {
     case 0:
-        CompactPartySlots();
+        CompactPlayerPartySlots();
         sub_80909F4();
         gPSSData->state++;
         break;
     case 1:
         if (!sub_8090A60())
         {
-            sub_808FAA8();
+            UpdatePartySlotColors();
             SetPSSCallback(Cb_MainPSS);
         }
         break;
@@ -2120,6 +2132,7 @@ static void LoadPSSMenuGfx(void)
 {
     InitBgsFromTemplates(0, gUnknown_83CEA50, NELEMS(gUnknown_83CEA50));
     DecompressAndLoadBgGfxUsingHeap(1, gPSSMenu_Gfx, 0, 0, 0);
+    DecompressAndLoadBgGfxUsingHeap(1, sMenuStolen_Gfx, 0, 0x1090, 0);
     LZ77UnCompWram(gUnknown_83CE5FC, gPSSData->field_5AC4);
     SetBgTilemapBuffer(1, gPSSData->field_5AC4);
     ShowBg(1);
@@ -2344,6 +2357,8 @@ static void sub_808F68C(void)
 {
     LZ77UnCompWram(gUnknown_8E9CAEC, gPSSData->field_B0);
     LoadPalette(gPSSMenu_Pal, 0x10, 0x20);
+    LZ77UnCompWram(sMenuStolen_Tilemap, sStorage->stolenSlotTilemapBuffer);
+    LoadPalette(sMenuStolen_Pal, 0xF0, 0x20);
     SetBoxPartyPokemonDropdownMap2(1, 1, gPSSData->field_B0, 12, 22);
     SetBoxPartyPokemonDropdownMap2(2, 1, gUnknown_83CE778, 9, 4);
     SetBoxPartyPokemonDropdownMap2Pos(1, 10, 0);
@@ -2426,7 +2441,7 @@ static bool8 HidePartyMenu(void)
         {
             sInPartyMenu = FALSE;
             DestroyAllPartyMonIcons();
-            CompactPartySlots();
+            CompactPlayerPartySlots();
             SetBoxPartyPokemonDropdownMap2Rect(2, 0, 0, 9, 2);
             CopyBoxPartyPokemonDropdownToBgTilemapBuffer(2);
             ScheduleBgCopyTilemapToVram(1);
@@ -2478,26 +2493,39 @@ static void sub_808F9FC(void)
 {
     u8 i;
 
-    for (i = 1; i < PARTY_SIZE; i++)
+    for (i = 0; i < PARTY_SIZE; i++)
     {
         s32 species = GetMonData(gPlayerParty + i, MON_DATA_SPECIES);
         sub_808FA30(i, (species != SPECIES_NONE));
     }
 }
 
-static void sub_808FA30(u8 pos, bool8 isPartyMon)
+static void sub_808FA30(u8 partyId, bool8 hasMon)
 {
     u16 i, j, index;
     const u16 *data;
 
-    if (isPartyMon)
-        data = gUnknown_83CE7C0;
-    else
-        data = gUnknown_83CE7D8;
+    if (!hasMon) {
+        data = sPartySlotEmpty_Tilemap;
+    } 
+    #ifdef PREVIEW_NEXT_STEAL
+    else if (FlagGet(FLAG_SYS_POKEDEX_GET) && 
+             GetMonData(&gPlayerParty[partyId], MON_DATA_ID) == FurthestPartyMonId(0, PARTY_SIZE)) {
+                data = sPartySlotNextStolen_Tilemap;
+            }
+    #endif
+    else {
+        data = sPartySlotFilled_Tilemap;
+    }
 
-    index = 3 * (3 * (pos - 1) + 1);
-    index *= 4;
-    index += 7;
+    if (partyId == 0) {
+        index = 85;
+    } else {
+        index = 3 * (3 * (partyId - 1) + 1);
+        index *= 4;
+        index += 7;
+    }
+
     for (i = 0; i < 3; i++)
     {
         for (j = 0; j < 4; j++)
@@ -2509,7 +2537,7 @@ static void sub_808FA30(u8 pos, bool8 isPartyMon)
     }
 }
 
-static void sub_808FAA8(void)
+static void UpdatePartySlotColors(void)
 {
     sub_808F9FC();
     SetBoxPartyPokemonDropdownMap2Rect(1, 0, 0, 12, 22);

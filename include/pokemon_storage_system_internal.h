@@ -380,6 +380,7 @@ struct PokemonStorageSystemData
     /* 42bc */ u8 field_42C4[0x800];
     /* 4abc */ u8 field_4AC4[0x1000];
     /* 5abc */ u8 field_5AC4[0x800];
+    u16 stolenSlotTilemapBuffer[0x108];
 }; // size=62bc
 
 extern struct PokemonStorageSystemData *gPSSData;

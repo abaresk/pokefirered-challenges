@@ -1055,6 +1055,7 @@ static void RS_TryEnableNationalPokedex(void)
 static void TradeMons(u8 playerPartyIdx, u8 partnerPartyIdx)
 {
     u8 friendship;
+    u16 monId;
 
     // Get whether the offered Pokemon have mail
     struct Pokemon * playerMon = &gPlayerParty[playerPartyIdx];
@@ -1067,6 +1068,11 @@ static void TradeMons(u8 playerPartyIdx, u8 partnerPartyIdx)
     if (playerMail != 0xFF)
         ClearMailStruct(&gSaveBlock1Ptr->mail[playerMail]);
 
+    monId = GetMonData(playerMon, MON_DATA_ID);
+    if (monId != 0) {
+        Queue_Remove(&gSaveBlock2Ptr->stealQueue, monId);
+    }
+    
     // This is where the actual trade happens!!
     sTradeData->mon = *playerMon;
     *playerMon = *partnerMon;
@@ -2436,6 +2442,7 @@ static void CreateInGameTradePokemonInternal(u8 playerSlot, u8 inGameTradeIdx)
     u8 metLocation = METLOC_IN_GAME_TRADE;
     struct Pokemon * tradeMon = &gEnemyParty[0];
     u8 mailNum;
+    u16 monId;
     CreateMon(tradeMon, inGameTrade->species, level, 32, TRUE, inGameTrade->personality, TRUE, inGameTrade->otId);
     SetMonData(tradeMon, MON_DATA_HP_IV, &inGameTrade->ivs[0]);
     SetMonData(tradeMon, MON_DATA_ATK_IV, &inGameTrade->ivs[1]);
@@ -2454,6 +2461,11 @@ static void CreateInGameTradePokemonInternal(u8 playerSlot, u8 inGameTradeIdx)
     SetMonData(tradeMon, MON_DATA_TOUGH, &inGameTrade->conditions[4]);
     SetMonData(tradeMon, MON_DATA_SHEEN, &inGameTrade->sheen);
     SetMonData(tradeMon, MON_DATA_MET_LOCATION, &metLocation);
+
+    monId = MonCounterIncr();
+    SetMonData(pokemon, MON_DATA_ID, &monId);
+    PlaceMonInStealQueue(monId);
+
     mailNum = 0;
     if (inGameTrade->heldItem != ITEM_NONE)
     {

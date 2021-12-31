@@ -29,9 +29,11 @@
 #include "berry_powder.h"
 #include "pokemon_jump.h"
 #include "event_scripts.h"
+#include "steal_queue.h"
 
 // this file's functions
 static void ResetMiniGamesResults(void);
+static void ResetStealQueue(void);
 
 // EWRAM vars
 EWRAM_DATA bool8 gDifferentSaveFile = FALSE;
@@ -118,6 +120,8 @@ void NewGameInitData(void)
     ClearMailData();
     gSaveBlock2Ptr->specialSaveWarpFlags = 0;
     gSaveBlock2Ptr->gcnLinkFlags = 0;
+    gSaveBlock2Ptr->monsCaught = 1; // We'll use 0 as a sentinel to tell whether
+                                    // a mon was added to the queue.
     gSaveBlock2Ptr->field_AC = 1;
     gSaveBlock2Ptr->field_AD = 0;
     InitPlayerTrainerId();
@@ -149,6 +153,7 @@ void NewGameInitData(void)
     ScriptContext2_RunNewScript(EventScript_ResetAllMapFlags);
     StringCopy(gSaveBlock1Ptr->rivalName, rivalName);
     ResetTrainerTowerResults();
+    ResetStealQueue();
 }
 
 static void ResetMiniGamesResults(void)
@@ -157,4 +162,8 @@ static void ResetMiniGamesResults(void)
     SetBerryPowder(&gSaveBlock2Ptr->berryCrush.berryPowderAmount, 0);
     ResetPokeJumpResults();
     CpuFill16(0, &gSaveBlock2Ptr->berryPick, sizeof(struct BerryPickingResults));
+}
+
+static void ResetStealQueue(void) {
+    InitStealQueue(&gSaveBlock2Ptr->stealQueue);
 }

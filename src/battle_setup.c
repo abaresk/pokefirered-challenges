@@ -73,6 +73,7 @@ static EWRAM_DATA u8 *sTrainerCannotBattleSpeech = NULL;
 static EWRAM_DATA u8 *sTrainerBattleEndScript = NULL;
 static EWRAM_DATA u8 *sTrainerABattleScriptRetAddr = NULL;
 static EWRAM_DATA u16 sRivalBattleFlags = 0;
+static EWRAM_DATA bool8 sAwaitingWhiteout = FALSE;
 
 static const u8 sBattleTransitionTable_Wild[][2] =
 {
@@ -671,7 +672,7 @@ static u16 GetTrainerAFlag(void)
     return TRAINER_FLAGS_START + gTrainerBattleOpponent_A;
 }
 
-static bool32 IsPlayerDefeated(u32 battleOutcome)
+bool32 IsPlayerDefeated(u32 battleOutcome)
 {
     switch (battleOutcome)
     {
@@ -835,6 +836,69 @@ void SetUpTrainerMovement(void)
     SetTrainerMovementType(objectEvent, GetTrainerFacingDirectionMovementType(objectEvent->facingDirection));
 }
 
+#define tFuncId             data[0]
+#define tTimer              data[2]
+#define tTrainerRange       data[3]
+#define tOutOfAshSpriteId   data[4]
+#define tNotEnoughMons      data[5]
+#define tTrainerObjectEventId data[7]
+
+bool8 CheckPlayerWhiteOut(void) {
+    u8 taskId;
+    // ObjectEvent for trainer
+    struct ObjectEvent *objectEvent = &gObjectEvents[gSelectedObjectEvent];
+
+    // No whiteout required, allow script to progress.
+    if (!ShouldPlayerWhiteout()) return TRUE;
+
+    // If we haven't initiated the whiteout tasks
+    if (!FuncIsActiveTask(Task_RunTrainerSeeFuncList) &&
+        !FuncIsActiveTask(Task_TrainerEncounterWhiteOut)) {
+            // Initiate task to make player face away from the trainer and white out.
+            taskId = CreateTask(TaskDummy, 80);
+            SetTaskFuncWithFollowupFunc(taskId, Task_RunTrainerSeeFuncList, Task_TrainerEncounterWhiteOut);
+            gTasks[taskId].tFuncId = TRSEE_PLAYER_FACE_AWAY;
+            gTasks[taskId].tTrainerObjectEventId =
+                GetObjectEventIdByLocalIdAndMap(objectEvent->localId, objectEvent->mapNum, objectEvent->mapGroup);
+
+            Task_RunTrainerSeeFuncList(taskId);
+            sAwaitingWhiteout = TRUE;
+            return FALSE;
+    }
+
+    // Once tasks have finished completing, reset sAwaitingWhiteout and allow
+    // script to progress.
+    if ((!FuncIsActiveTask(Task_RunTrainerSeeFuncList) &&
+        !FuncIsActiveTask(Task_TrainerEncounterWhiteOut)) && sAwaitingWhiteout) {
+            sAwaitingWhiteout = FALSE;
+            return TRUE;
+        }
+
+    return FALSE;
+}
+
+#undef tTrainerRange
+#undef tTimer
+#undef tOutOfAshSpriteId
+#undef tNotEnoughMons
+#undef tTrainerObjectEventId
+
+bool8 ShouldPlayerWhiteout(void) {
+    bool8 enoughMons = IsTrainerBattleDouble(GetTrainerBattleMode()) ? 
+        EnoughMonsForDoubleBattle() : PlayerHasMoreThanOneMon();
+    return FlagGet(FLAG_SYS_POKEDEX_GET) && !enoughMons;
+}
+
+bool8 PlayerHasMoreThanOneMon(void) {
+    return CountPlayerBattleMons() > 1;
+}
+
+// Two mons get stolen and game requires two mons for double battle. Therefore,
+// double battles require the player to have 4 mons.
+bool8 EnoughMonsForDoubleBattle(void) {
+    return CountPlayerBattleMons() > 3;
+}
+
 u8 GetTrainerBattleMode(void)
 {
     return sTrainerBattleMode;
@@ -888,6 +952,8 @@ void StartTrainerBattle(void)
 
 static void CB2_EndTrainerBattle(void)
 {
+    bool8 playerWon = !IsPlayerDefeated(gBattleOutcome);
+
     if (sTrainerBattleMode == TRAINER_BATTLE_EARLY_RIVAL)
     {
         if (IsPlayerDefeated(gBattleOutcome) == TRUE)
@@ -931,6 +997,18 @@ static void CB2_EndTrainerBattle(void)
             SetBattledTrainerFlag();
             QuestLogEvents_HandleEndTrainerBattle();
         }
+
+        // If you win, replace stolen mon with one of theirs. If you lose, get your
+        // mon back.
+        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS) {
+            TryReturnMonToPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT, playerWon);
+            TryReturnMonToPlayer(gTrainerBattleOpponent_B, SECOND_OPPONENT, playerWon);
+        } else if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) {
+            TryReturnMonToPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT, playerWon);
+            TryReturnMonToPlayer(gTrainerBattleOpponent_A, SECOND_OPPONENT, playerWon);
+        } else {
+            TryReturnMonToPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT, playerWon);
+        }        
     }
 }
 
@@ -1050,4 +1128,11 @@ const u8 *GetTrainerWonSpeech(void)
 static const u8 *GetTrainerCantBattleSpeech(void)
 {
     return ReturnEmptyStringIfNull(sTrainerCannotBattleSpeech);
+}
+
+bool8 IsTrainerBattleDouble(u16 battleMode) {
+    return battleMode == TRAINER_BATTLE_DOUBLE ||
+           battleMode == TRAINER_BATTLE_REMATCH_DOUBLE ||
+           battleMode == TRAINER_BATTLE_CONTINUE_SCRIPT_DOUBLE ||
+           battleMode == TRAINER_BATTLE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC;
 }

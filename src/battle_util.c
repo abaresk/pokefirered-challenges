@@ -1080,6 +1080,8 @@ bool8 HandleWishPerishSongOnTurnEnd(void)
 
 bool8 HandleFaintedMonActions(void)
 {
+    s32 partySize;
+        
     if (gBattleTypeFlags & BATTLE_TYPE_SAFARI)
         return FALSE;
     do
@@ -1092,7 +1094,8 @@ bool8 HandleFaintedMonActions(void)
             ++gBattleStruct->faintedActionsState;
             for (i = 0; i < gBattlersCount; ++i)
             {
-                if (gAbsentBattlerFlags & gBitTable[i] && !HasNoMonsToSwitch(i, 6, 6))
+                partySize = GetBattlerSide(i) == B_SIDE_PLAYER ? PARTY_SIZE : OPPONENT_PARTY_SIZE;
+                if (gAbsentBattlerFlags & gBitTable[i] && !HasNoMonsToSwitch(i, partySize, partySize))
                     gAbsentBattlerFlags &= ~(gBitTable[i]);
             }
             // fall through
@@ -1471,6 +1474,7 @@ bool8 HasNoMonsToSwitch(u8 battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
 {
     u8 playerId, flankId;
     struct Pokemon *party;
+    s32 partySize;
     s32 i;
 
     if (!(gBattleTypeFlags & BATTLE_TYPE_DOUBLE))
@@ -1482,10 +1486,14 @@ bool8 HasNoMonsToSwitch(u8 battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
         if (gBattleTypeFlags & BATTLE_TYPE_MULTI)
         {
             playerId = GetBattlerMultiplayerId(battler);
-            if (GetBattlerSide(battler) == B_SIDE_PLAYER)
+            if (GetBattlerSide(battler) == B_SIDE_PLAYER) {
                 party = gPlayerParty;
-            else
+                partySize = PARTY_SIZE;
+            }
+            else {
                 party = gEnemyParty;
+                partySize = OPPONENT_PARTY_SIZE;
+            }
             flankId = GetLinkTrainerFlankId(playerId);
             for (i = flankId * 3; i < flankId * 3 + 3; ++i)
             {
@@ -1503,18 +1511,20 @@ bool8 HasNoMonsToSwitch(u8 battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
                 playerId = GetBattlerAtPosition(B_POSITION_OPPONENT_LEFT);
                 flankId = GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT);
                 party = gEnemyParty;
+                partySize = OPPONENT_PARTY_SIZE;
             }
             else
             {
                 playerId = GetBattlerAtPosition(B_POSITION_PLAYER_LEFT);
                 flankId = GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT);
                 party = gPlayerParty;
+                partySize = PLAYER_PARTY_SIZE;
             }
-            if (partyIdBattlerOn1 == PARTY_SIZE)
+            if (partyIdBattlerOn1 == partySize)
                 partyIdBattlerOn1 = gBattlerPartyIndexes[playerId];
-            if (partyIdBattlerOn2 == PARTY_SIZE)
+            if (partyIdBattlerOn2 == partySize)
                 partyIdBattlerOn2 = gBattlerPartyIndexes[flankId];
-            for (i = 0; i < PARTY_SIZE; ++i)
+            for (i = 0; i < partySize; ++i)
             {
                 if (GetMonData(&party[i], MON_DATA_HP) != 0
                  && GetMonData(&party[i], MON_DATA_SPECIES2) != SPECIES_NONE
@@ -1525,7 +1535,7 @@ bool8 HasNoMonsToSwitch(u8 battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
                  && i != flankId[gBattleStruct->monToSwitchIntoId])
                     break;
             }
-            return (i == PARTY_SIZE);
+            return (i == partySize);
         }
     }
 }

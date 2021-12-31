@@ -2,6 +2,7 @@
 #define GUARD_POKEMON_STORAGE_SYSTEM_H
 
 #include "global.h"
+#include "battle_main.h"
 
 #define TOTAL_BOXES_COUNT       14
 #define IN_BOX_COUNT            30
@@ -30,12 +31,15 @@ enum
 u8 *GetBoxNamePtr(u8 boxNumber);
 struct BoxPokemon *GetBoxedMonPtr(u8 boxId, u8 monPosition);
 void SetBoxMonNickAt(u8 boxId, u8 monPosition, const u8 *newNick);
-s16 CompactPartySlots(void);
+s16 CompactPlayerPartySlots(void);
+s16 CompactEnemyPartySlots(OpponentType type);
+s16 CompactPlayerPartySlots(Pokemon *party, u16 firstSlot, u16 lastSlot);
 u32 GetBoxMonDataAt(u8 boxId, u8 monPosition, s32 request);
 void ZeroBoxMonAt(u8 boxId, u8 monPosition);
 void Cb2_ReturnToPSS(void);
 void ResetPokemonStorageSystem(void);
 u8 StorageGetCurrentBox(void);
 void DrawTextWindowAndBufferTiles(const u8 *string, void *dst, u8 zero1, u8 zero2, u8 *buffer, s32 bytesToBuffer);
+void BoxMons_ForEach(void (*f)(BoxPokemon *mon, void *), void *data);
 
 #endif // GUARD_POKEMON_STORAGE_SYSTEM_H

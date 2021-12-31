@@ -1446,6 +1446,11 @@
 	.2byte \quantity
 	.endm
 
+	.macro setseed seedID:req
+	.byte 0xe3
+	.2byte \seedID
+	.endm
+	
 
 @ Supplementary
 

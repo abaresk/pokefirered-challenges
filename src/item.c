@@ -15,6 +15,9 @@ EWRAM_DATA struct BagPocket gBagPockets[NUM_BAG_POCKETS] = {};
 
 void SortAndCompactBagPocket(struct BagPocket * pocket);
 
+static bool8 IsPokeBall(u16 itemId);
+static s32 NumBadges(void);
+
 // Item descriptions and data
 #include "data/items.h"
 
@@ -196,6 +199,14 @@ bool8 CheckBagHasSpace(u16 itemId, u16 count)
         return TRUE;
 
     return FALSE;
+}
+
+bool8 AddItemToBagOrPC(u16 itemId) {
+    bool8 added = AddBagItem(itemId, 1);
+    if (!added) {
+        added = AddPCItem(itemId, 1);
+    }
+    return added;
 }
 
 bool8 AddBagItem(u16 itemId, u16 count)
@@ -628,7 +639,15 @@ u16 itemid_get_number(u16 itemId)
 
 u16 itemid_get_market_price(u16 itemId)
 {
-    return gItems[SanitizeItemId(itemId)].price;
+    u16 price = gItems[SanitizeItemId(itemId)].price;
+
+    #ifdef SCALING_POKE_BALL_MULTIPLIER
+    u16 numBadges = NumBadges();
+    if (IsPokeBall(itemId)) {
+        price += SCALING_POKE_BALL_MULTIPLIER * numBadges;
+    }
+    #endif
+    return price;
 }
 
 u8 ItemId_GetHoldEffect(u16 itemId)
@@ -684,4 +703,20 @@ ItemUseFunc ItemId_GetBattleFunc(u16 itemId)
 u8 ItemId_GetSecondaryId(u16 itemId)
 {
     return gItems[SanitizeItemId(itemId)].secondaryId;
+}
+
+static bool8 IsPokeBall(u16 itemId) {
+    return itemId >= FIRST_BALL && itemId <= LAST_BALL;
+}
+
+static s32 NumBadges(void) {
+    s32 flag;
+    s32 count = 0;
+
+    for (flag = FLAG_BADGE01_GET; flag <= FLAG_BADGE08_GET; flag++) {
+        if (FlagGet(flag)) {
+            count++;
+        }
+    }
+    return count;
 }

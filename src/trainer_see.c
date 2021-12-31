@@ -7,6 +7,7 @@
 #include "script.h"
 #include "task.h"
 #include "util.h"
+#include "event_scripts.h"
 #include "constants/battle_setup.h"
 #include "constants/event_object_movement.h"
 #include "constants/event_objects.h"
@@ -38,6 +39,10 @@ static bool8 TrainerSeeFunc_EndJumpOutOfAsh(u8 taskId, struct Task * task, struc
 static bool8 TrainerSeeFunc_OffscreenAboveTrainerCreateCameraObj(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj);
 static bool8 TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveUp(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj);
 static bool8 TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveDown(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj);
+static void StartTrainerExclamation(struct ObjectEvent *trainerObj, bool8 whiteOut);
+static void StartPlayerExclamation(struct ObjectEvent *trainerObj);
+static bool8 PlayerFaceAway(u8 taskId, struct Task *task, struct ObjectEvent *trainerObj);
+static bool8 WaitExclamationAndFaceAway(u8 taskId, struct Task *task, struct ObjectEvent *trainerObj);
 static void Task_DestroyTrainerApproachTask(u8 taskId);
 static void SpriteCB_TrainerIcons(struct Sprite * sprite);
 static void SetIconSpriteData(struct Sprite *sprite, u16 fldEffId, u8 spriteAnimNum);
@@ -74,7 +79,9 @@ static const TrainerSeeFunc sTrainerSeeFuncList[] = {
     TrainerSeeFunc_EndJumpOutOfAsh,
     TrainerSeeFunc_OffscreenAboveTrainerCreateCameraObj,
     TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveUp,
-    TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveDown
+    TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveDown,
+    PlayerFaceAway,
+    WaitExclamationAndFaceAway,
 };
 
 static const TrainerSeeFunc sTrainerSeeFuncList2[] = {
@@ -240,6 +247,8 @@ static u8 CheckPathBetweenTrainerAndPlayer(struct ObjectEvent *trainerObj, u8 ap
 #define tTrainerRange       data[3]
 #define tOutOfAshSpriteId   data[4]
 #define tData5              data[5]
+#define tTimer              data[6]
+#define tNotEnoughMons      data[7]
 
 #define TaskGetTrainerObj(dest, task) do { \
     (dest) = (struct ObjectEvent *)(((task)->tTrainerObjHi << 16) | ((u16)(task)->tTrainerObjLo)); \
@@ -256,13 +265,21 @@ static void TrainerApproachPlayer(struct ObjectEvent * trainerObj, u8 approachDi
 
 static void StartTrainerApproachWithFollowupTask(TaskFunc taskFunc)
 {
+    bool8 whiteOut = ShouldPlayerWhiteout();
     u8 taskId = FindTaskIdByFunc(Task_RunTrainerSeeFuncList);
+    
+    // Follow up with white out task if player does not have enough mons
+    if (whiteOut) {
+        taskFunc = Task_TrainerEncounterWhiteOut;
+    }
+
     SetTaskFuncWithFollowupFunc(taskId, Task_RunTrainerSeeFuncList, taskFunc);
     gTasks[taskId].tFuncId = 1;
+    gTasks[taskId].tNotEnoughMons = whiteOut;
     Task_RunTrainerSeeFuncList(taskId);
 }
 
-static void Task_RunTrainerSeeFuncList(u8 taskId)
+void Task_RunTrainerSeeFuncList(u8 taskId)
 {
     struct Task * task = &gTasks[taskId];
     struct ObjectEvent * trainerObj;
@@ -294,16 +311,50 @@ static bool8 TrainerSeeFunc_StartExclMark(u8 taskId, struct Task * task, struct 
     if (trainerObj->facingDirection == DIR_SOUTH && task->tTrainerRange > 2)
     {
         task->tFuncId = 12;
+        return;
     }
-    else
-    {
-        ObjectEventGetLocalIdAndMap(trainerObj, (u8 *)&gFieldEffectArguments[0], (u8 *)&gFieldEffectArguments[1], (u8 *)&gFieldEffectArguments[2]);
-        FieldEffectStart(FLDEFF_EXCLAMATION_MARK_ICON);
-        action = GetFaceDirectionMovementAction(trainerObj->facingDirection);
-        ObjectEventSetHeldMovement(trainerObj, action);
-        task->tFuncId++;
+
+    if (!task->tNotEnoughMons) {
+        StartTrainerExclamation(trainerObj, task->tNotEnoughMons);
+        task->tFuncId = TRSEE_EXCLAMATION_WAIT;
+        return TRUE;
     }
-    return TRUE;
+
+    if (task->tTimer == 0) {
+        StartTrainerExclamation(trainerObj, task->tNotEnoughMons);
+    } else if (task->tTimer == 14) {
+        StartPlayerExclamation(trainerObj);
+    } else if (task->tTimer == 26) {
+        task->tFuncId = TRSEE_PLAYER_FACE_AWAY;
+    }
+
+    task->tTimer++;
+    return FALSE;
+}
+
+static void StartTrainerExclamation(struct ObjectEvent *trainerObj, bool8 whiteOut) {
+    u8 direction;
+
+    ObjectEventGetLocalIdAndMap(trainerObj, &gFieldEffectArguments[0], &gFieldEffectArguments[1], &gFieldEffectArguments[2]);
+    FieldEffectStart(FLDEFF_EXCLAMATION_MARK_ICON);
+
+    if (!whiteOut) {
+        direction = GetFaceDirectionMovementAction(trainerObj->facingDirection);
+        ObjectEventSetHeldMovement(trainerObj, direction);
+    }
+}
+
+static void StartPlayerExclamation(struct ObjectEvent *trainerObj) {
+    u8 direction;
+
+    // Set field args corresponding to player object
+    gFieldEffectArguments[0] = OBJ_EVENT_ID_PLAYER;
+    gFieldEffectArguments[1] = 0;
+    gFieldEffectArguments[2] = 0;
+
+    FieldEffectStart(FLDEFF_EXCLAMATION_MARK_ICON);
+    direction = GetFaceDirectionMovementAction(trainerObj->facingDirection);
+    ObjectEventSetHeldMovement(trainerObj, direction);
 }
 
 static bool8 TrainerSeeFunc_WaitExclMark(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj)
@@ -507,12 +558,49 @@ static bool8 TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveDown(u8 taskId, st
     return FALSE;
 }
 
+static bool8 PlayerFaceAway(u8 taskId, struct Task *task, struct ObjectEvent *trainerObj)
+{
+    struct ObjectEvent *playerObj;
+
+    if (ObjectEventIsMovementOverridden(trainerObj) && !ObjectEventClearHeldMovementIfFinished(trainerObj))
+        return FALSE;
+
+    // Set trainer's movement type so they stop and remain facing that direction
+    SetTrainerMovementType(trainerObj, GetTrainerFacingDirectionMovementType(trainerObj->facingDirection));
+    TryOverrideTemplateCoordsForObjectEvent(trainerObj, GetTrainerFacingDirectionMovementType(trainerObj->facingDirection));
+    OverrideTemplateCoordsForObjectEvent(trainerObj);
+
+    playerObj = &gObjectEvents[gPlayerAvatar.objectEventId];
+    if (ObjectEventIsMovementOverridden(playerObj) && !ObjectEventClearHeldMovementIfFinished(playerObj))
+        return FALSE;
+
+    sub_808BCE8();
+    ObjectEventSetHeldMovement(&gObjectEvents[gPlayerAvatar.objectEventId], GetFaceDirectionMovementAction(trainerObj->facingDirection));
+    task->tFuncId = TRSEE_EXCLAMATION_FACE_AWAY_WAIT;
+    return FALSE;
+}
+
+// TRSEE_EXCLAMATION_FACE_AWAY_WAIT
+static bool8 WaitExclamationAndFaceAway(u8 taskId, struct Task *task, struct ObjectEvent *trainerObj)
+{
+    struct ObjectEvent *playerObj = &gObjectEvents[gPlayerAvatar.objectEventId];
+
+    if ((!ObjectEventIsMovementOverridden(playerObj) || 
+        ObjectEventClearHeldMovementIfFinished(playerObj)) &&
+        !FieldEffectActiveListContains(FLDEFF_EXCLAMATION_MARK_ICON)) {
+            SwitchTaskToFollowupFunc(taskId);
+        }
+    return FALSE;
+}
+
 #undef tData5
 #undef tOutOfAshSpriteId
 #undef tTrainerRange
 #undef tTrainerObjLo
 #undef tTrainerObjHi
 #undef tFuncId
+#undef tTimer
+#undef tNotEnoughMons
 
 static void Task_RevealTrainer_RunTrainerSeeFuncList(u8 taskId)
 {
@@ -542,6 +630,13 @@ static void Task_RevealTrainer_RunTrainerSeeFuncList(u8 taskId)
 void MovementAction_RevealTrainer_RunTrainerSeeFuncList(struct ObjectEvent *var)
 {
     StoreWordInTwoHalfwords((u16 *)&gTasks[CreateTask(Task_RevealTrainer_RunTrainerSeeFuncList, 0)].data[1], (u32)var);
+}
+
+void Task_TrainerEncounterWhiteOut(u8 taskId) {
+    ScriptContext1_SetupScript(EventScript_TrainerEncounterWhiteOut);
+
+    DestroyTask(taskId);
+    EnableBothScriptContexts();
 }
 
 void EndTrainerApproach(void)

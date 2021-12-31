@@ -45,6 +45,11 @@ struct MultiBattlePokemonTx
 #define BOUNCE_MON          0x0
 #define BOUNCE_HEALTHBOX    0x1
 
+typedef enum {
+    FIRST_OPPONENT,
+    SECOND_OPPONENT,
+} OpponentType;
+
 extern const struct SpriteTemplate gUnknownDebugSprite;
 extern const struct OamData gOamData_BattlerOpponent;
 extern const struct OamData gOamData_BattlerPlayer;
@@ -94,5 +99,7 @@ u8 GetWhoStrikesFirst(u8 battler1, u8 battler2, bool8 ignoreChosenMoves);
 void RunBattleScriptCommands_PopCallbacksStack(void);
 void RunBattleScriptCommands(void);
 bool8 TryRunFromBattle(u8 battler);
+void TryReturnMonToPlayer(u32 trainerId, OpponentType type, bool8 playerWon);
+u16 FurthestPartyMonId(u16 first, u16 last);
 
 #endif // GUARD_BATTLE_MAIN_H

@@ -15,6 +15,7 @@ EventScript_TryDoNormalTrainerBattle:: @ 81A4EC1
 	goto_if_ne EventScript_NoTrainerBattle
 	special PlayTrainerEncounterMusic
 	special SetUpTrainerMovement
+	gotonative CheckPlayerWhiteOut
 	goto EventScript_DoTrainerBattle
 
 EventScript_NoTrainerBattle:: @ 81A4EE8
@@ -27,11 +28,9 @@ EventScript_TryDoDoubleTrainerBattle:: @ 81A4EE9
 	specialvar VAR_RESULT, Script_HasTrainerBeenFought
 	compare VAR_RESULT, FALSE
 	goto_if_ne EventScript_NoDoubleTrainerBattle
-	special HasEnoughMonsForDoubleBattle
-	compare VAR_RESULT, PLAYER_HAS_TWO_USABLE_MONS
-	goto_if_ne EventScript_NotEnoughMonsForDoubleBattle
 	special PlayTrainerEncounterMusic
 	special SetUpTrainerMovement
+	gotonative CheckPlayerWhiteOut
 	goto EventScript_DoTrainerBattle
 
 EventScript_NotEnoughMonsForDoubleBattle:: @ 81A4F19
@@ -48,6 +47,7 @@ EventScript_DoNoIntroTrainerBattle:: @ 81A4F21
 	applymovement VAR_LAST_TALKED, Movement_RevealTrainer
 	waitmovement 0
 	special PlayTrainerEncounterMusic
+	gotonative CheckPlayerWhiteOut
 	goto_if_questlog EventScript_EndQuestLogBattle
 	battlebegin
 	ontrainerbattleend
@@ -59,6 +59,7 @@ EventScript_TryDoRematchBattle:: @ 81A4F3E
 	goto_if_eq EventScript_NoRematchBattle
 	special PlayTrainerEncounterMusic
 	special SetUpTrainerMovement
+	gotonative CheckPlayerWhiteOut
 	special ShowTrainerIntroSpeech
 	waitmessage
 	waitbuttonpress
@@ -75,11 +76,9 @@ EventScript_TryDoDoubleRematchBattle:: @ 81A4F73
 	specialvar VAR_RESULT, IsTrainerReadyForRematch
 	compare VAR_RESULT, FALSE
 	goto_if_eq EventScript_NoDoubleRematchBattle
-	special HasEnoughMonsForDoubleBattle
-	compare VAR_RESULT, PLAYER_HAS_TWO_USABLE_MONS
-	goto_if_ne EventScript_NotEnoughMonsForDoubleRematchBattle
 	special PlayTrainerEncounterMusic
 	special SetUpTrainerMovement
+	gotonative CheckPlayerWhiteOut
 	special ShowTrainerIntroSpeech
 	waitmessage
 	waitbuttonpress

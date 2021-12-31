@@ -31,6 +31,7 @@
 #define BAG_TMHM_COUNT      58
 #define BAG_BERRIES_COUNT   43
 #define OBJECT_EVENT_TEMPLATES_COUNT 64
+#define STEAL_QUEUE_COUNT 428 // Number of Pokémon you can own at a time
 
 #define QUEST_LOG_SCENE_COUNT 4
 
@@ -70,6 +71,7 @@
 
 #define TRAINER_ID_LENGTH 4
 #define PARTY_SIZE 6
+#define OPPONENT_PARTY_SIZE 8
 #define MULTI_PARTY_SIZE (PARTY_SIZE / 2)
 
 #define DIR_NONE        0

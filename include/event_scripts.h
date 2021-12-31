@@ -1256,6 +1256,8 @@ extern const u8 EventScript_Waterfall[];
 extern const u8 EventScript_CantUseWaterfall[];
 extern const u8 EventScript_VsSeekerChargingDone[];
 extern const u8 EventScript_FieldPoison[];
+extern const u8 EventScript_FieldWhiteOut[];
+extern const u8 EventScript_TrainerEncounterWhiteOut[];
 extern const u8 EventScript_EggHatch[];
 extern const u8 EventScript_1C1361[];
 

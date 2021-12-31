@@ -1654,6 +1654,13 @@ bool8 ScrCmd_bufferitemnameplural(struct ScriptContext * ctx)
     return FALSE;
 }
 
+bool8 ScrCmd_setseed(struct ScriptContext *ctx) {
+    u16 seedID = ScriptReadHalfword(ctx);
+    SeedSet(seedID, TimerRNG());
+
+    return FALSE;
+}
+
 bool8 ScrCmd_bufferdecorationname(struct ScriptContext * ctx)
 {
     u8 stringVarIndex = ScriptReadByte(ctx);

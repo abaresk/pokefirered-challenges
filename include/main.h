@@ -66,6 +66,7 @@ void RestoreSerialTimer3IntrHandlers(void);
 void SetVBlankCounter1Ptr(u32 *ptr);
 void DisableVBlankCounter1(void);
 void StartTimer1(void);
+void StartTimer2(void);
 void SeedRngAndSetTrainerId(void);
 u16 GetGeneratedTrainerIdLower(void);
 

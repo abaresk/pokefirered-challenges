@@ -69,3 +69,14 @@ EventScript_FieldWhiteOutFade:: @ 81A8E4D
 	special SetCB2WhiteOut
 	waitstate
 	end
+
+EventScript_TrainerEncounterWhiteOut:: @ 82736D9
+	message gText_TrainerEncounterWhiteOut
+	waitmessage
+	waitbuttonpress
+	special Script_FadeOutMapMusic
+	waitstate
+	fadescreen FADE_TO_BLACK
+	special SetCB2WhiteOut
+	waitstate
+	end

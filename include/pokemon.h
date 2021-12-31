@@ -90,6 +90,7 @@ struct BoxPokemon
 {
     u32 personality;
     u32 otId;
+    u16 monId;    
     u8 nickname[POKEMON_NAME_LENGTH];
     u8 language;
     u8 isBadEgg:1;
@@ -122,6 +123,9 @@ struct Pokemon
     u16 spAttack;
     u16 spDefense;
 };
+
+typedef struct Pokemon Pokemon;
+typedef struct BoxPokemon BoxPokemon;
 
 struct PokemonStorage
 {
@@ -313,10 +317,17 @@ struct Evolution
 
 #define EVOS_PER_MON 5
 
+typedef struct {
+    struct Pokemon mon;
+    u16 queueIndex;
+} StolenMon;
+
 extern u8 gPlayerPartyCount;
 extern struct Pokemon gPlayerParty[PARTY_SIZE];
 extern u8 gEnemyPartyCount;
-extern struct Pokemon gEnemyParty[PARTY_SIZE];
+extern struct Pokemon gEnemyParty[OPPONENT_PARTY_SIZE];
+extern struct Pokemon gEnemyPartyOriginal[OPPONENT_PARTY_SIZE];
+extern StolenMon gStolenMons[2];
 extern const struct BaseStats gBaseStats[];
 extern const u8 *const gItemEffectTable[];
 extern const struct Evolution gEvolutionTable[][EVOS_PER_MON];
@@ -386,6 +397,8 @@ void CopyMon(void *dest, void *src, size_t size);
 u8 GiveMonToPlayer(struct Pokemon *mon);
 u8 CalculatePlayerPartyCount(void);
 u8 CalculateEnemyPartyCount(void);
+u8 CountPlayerBattleMons(void);
+u8 CountEnemyBattleMons(void);
 u8 GetMonsStateToDoubles(void);
 u8 GetAbilityBySpecies(u16 species, bool8 abilityNum);
 u8 GetMonAbility(struct Pokemon *mon);
@@ -456,5 +469,7 @@ bool8 CheckBattleTypeGhost(struct Pokemon *mon, u8 bank);
 struct OakSpeechNidoranFStruct *OakSpeechNidoranFSetup(u8 battlePosition, bool8 enable);
 void OakSpeechNidoranFFreeResources(void);
 void *OakSpeechNidoranFGetBuffer(u8 bufferId);
+u16 MonCounterIncr(void);
+void PlaceMonInStealQueue(u16 monId);
 
 #endif // GUARD_POKEMON_H

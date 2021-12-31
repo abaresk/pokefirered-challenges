@@ -506,6 +506,7 @@ PalletTown_ProfessorOaksLab_Movement_RivalApproachForBattleBulbasaurRight:: @ 81
 	step_end
 
 PalletTown_ProfessorOaksLab_EventScript_EndRivalBattle:: @ 81694C2
+	setseed SEED_TRAINER_MON_B
 	special HealPlayerParty
 	msgbox PalletTown_ProfessorOaksLab_Text_RivalGoToughenMyMon
 	closemessage
@@ -649,6 +650,7 @@ PalletTown_ProfessorOaksLab_EventScript_OakBattleMonForItToGrow:: @ 8169614
 	end
 
 PalletTown_ProfessorOaksLab_EventScript_ReceiveDexScene:: @ 816961E
+	setseed SEED_QUEUE_INSERTION
 	msgbox PalletTown_ProfessorOaksLab_Text_OakHaveSomethingForMe
 	textcolor 3
 	playfanfare MUS_OBTAIN_TMHM
@@ -1215,6 +1217,7 @@ PalletTown_ProfessorOaksLab_EventScript_ChoseStarter:: @ 8169C74
 	call EventScript_RestorePrevTextColor
 	setflag FLAG_SYS_POKEMON_GET
 	setflag FLAG_PALLET_LADY_NOT_BLOCKING_SIGN
+	setseed SEED_TRAINER_MON_A
 	givemon PLAYER_STARTER_SPECIES, 5, ITEM_NONE
 	copyvar VAR_STARTER_MON, PLAYER_STARTER_NUM
 	getspeciesname 0, PLAYER_STARTER_SPECIES

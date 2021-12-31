@@ -15,6 +15,10 @@ SixIsland_Mart_EventScript_Clerk:: @ 8171E66
 	.align 2
 SixIsland_Mart_Items:: @ 8171E8C
 	.2byte ITEM_ULTRA_BALL
+#ifdef SCALING_POKE_BALL_MULTIPLIER
+	.2byte ITEM_GREAT_BALL
+	.2byte ITEM_POKE_BALL
+#endif
 	.2byte ITEM_FULL_RESTORE
 	.2byte ITEM_MAX_POTION
 	.2byte ITEM_REVIVE

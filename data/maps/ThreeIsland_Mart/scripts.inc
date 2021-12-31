@@ -15,6 +15,10 @@ ThreeIsland_Mart_EventScript_Clerk:: @ 817188D
 	.align 2
 ThreeIsland_Mart_Items:: @ 81718B4
 	.2byte ITEM_ULTRA_BALL
+#ifdef SCALING_POKE_BALL_MULTIPLIER
+	.2byte ITEM_GREAT_BALL
+	.2byte ITEM_POKE_BALL
+#endif
 	.2byte ITEM_HYPER_POTION
 	.2byte ITEM_REVIVE
 	.2byte ITEM_FULL_HEAL

@@ -19,7 +19,7 @@ static bool8 ShouldSwitchIfPerishSong(void)
     if (gStatuses3[gActiveBattler] & STATUS3_PERISH_SONG
      && gDisableStructs[gActiveBattler].perishSongTimer == 0)
     {
-        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = PARTY_SIZE;
+        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = OPPONENT_PARTY_SIZE;
         BtlController_EmitTwoReturnValues(1, B_ACTION_SWITCH, 0);
         return TRUE;
     }
@@ -151,13 +151,13 @@ static bool8 ShouldSwitchIfNaturalCure(void)
         return FALSE;
     if ((gLastLandedMoves[gActiveBattler] == MOVE_NONE || gLastLandedMoves[gActiveBattler] == 0xFFFF) && Random() & 1)
     {
-        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = PARTY_SIZE;
+        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = OPPONENT_PARTY_SIZE;
         BtlController_EmitTwoReturnValues(1, B_ACTION_SWITCH, 0);
         return TRUE;
     }
     else if (gBattleMoves[gLastLandedMoves[gActiveBattler]].power == 0 && Random() & 1)
     {
-        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = PARTY_SIZE;
+        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = OPPONENT_PARTY_SIZE;
         BtlController_EmitTwoReturnValues(1, B_ACTION_SWITCH, 0);
         return TRUE;
     }
@@ -166,7 +166,7 @@ static bool8 ShouldSwitchIfNaturalCure(void)
         return TRUE;
     if (Random() & 1)
     {
-        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = PARTY_SIZE;
+        *(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) = OPPONENT_PARTY_SIZE;
         BtlController_EmitTwoReturnValues(1, B_ACTION_SWITCH, 0);
         return TRUE;
     }
@@ -358,15 +358,26 @@ static bool8 ShouldSwitch(void)
 void AI_TrySwitchOrUseItem(void)
 {
     u8 battlerIn1, battlerIn2;
+    struct Pokemon *party;
+    s32 partySize;
+
+    if (GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER) {
+        party = gPlayerParty;
+        partySize = PARTY_SIZE;
+    }
+    else {
+        party = gEnemyParty;
+        partySize = OPPONENT_PARTY_SIZE;
+    }    
 
     if (gBattleTypeFlags & BATTLE_TYPE_TRAINER)
     {
         if (ShouldSwitch())
         {
-            if (*(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) == 6)
+            if (*(gBattleStruct->AI_monToSwitchIntoId + (GetBattlerPosition(gActiveBattler) >> 1)) == partySize)
             {
                 s32 monToSwitchId = GetMostSuitableMonToSwitchInto();
-                if (monToSwitchId == 6)
+                if (monToSwitchId == partySize)
                 {
                     if (!(gBattleTypeFlags & BATTLE_TYPE_DOUBLE))
                     {
@@ -378,7 +389,7 @@ void AI_TrySwitchOrUseItem(void)
                         battlerIn1 = GetBattlerAtPosition(B_POSITION_OPPONENT_LEFT);
                         battlerIn2 = GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT);
                     }
-                    for (monToSwitchId = 0; monToSwitchId < PARTY_SIZE; ++monToSwitchId)
+                    for (monToSwitchId = 0; monToSwitchId < partySize; ++monToSwitchId)
                     {
                         if ((!GetMonData(&gEnemyParty[monToSwitchId], MON_DATA_HP) == 0)
                          && (monToSwitchId != gBattlerPartyIndexes[battlerIn1])
@@ -434,8 +445,11 @@ u8 GetMostSuitableMonToSwitchInto(void)
     s32 i, j;
     u8 invalidMons;
     u16 move;
+    struct Pokemon *party;
+    s32 partySize;
+    u16 invalidParty;    
 
-    if (*(gBattleStruct->monToSwitchIntoId + gActiveBattler) != PARTY_SIZE)
+    if (*(gBattleStruct->monToSwitchIntoId + gActiveBattler) != OPPONENT_PARTY_SIZE)
         return *(gBattleStruct->monToSwitchIntoId + gActiveBattler);
     if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE)
     {
@@ -455,13 +469,24 @@ u8 GetMostSuitableMonToSwitchInto(void)
         battlerIn1 = gActiveBattler;
         battlerIn2 = gActiveBattler;
     }
+
+    if (GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER) {
+        party = gPlayerParty;
+        partySize = PARTY_SIZE;
+    }
+    else {
+        party = gEnemyParty;
+        partySize = OPPONENT_PARTY_SIZE;
+    }
+
     invalidMons = 0;
-    while (invalidMons != 0x3F) // All mons are invalid.
+    invalidParty = GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER ? 0x3F : 0xFF;
+    while (invalidMons != invalidParty) // All mons are invalid.
     {
         bestDmg = 0;
-        bestMonId = 6;
+        bestMonId = partySize;
         // Find the mon whose type is the most suitable offensively.
-        for (i = 0; i < PARTY_SIZE; ++i)
+        for (i = 0; i < partySize; ++i)
         {
             u16 species = GetMonData(&gEnemyParty[i], MON_DATA_SPECIES);
             if (species != SPECIES_NONE
@@ -489,7 +514,7 @@ u8 GetMostSuitableMonToSwitchInto(void)
             }
         }
         // Ok, we know the mon has the right typing but does it have at least one super effective move?
-        if (bestMonId != PARTY_SIZE)
+        if (bestMonId != partySize)
         {
             for (i = 0; i < MAX_MON_MOVES; ++i)
             {
@@ -504,7 +529,7 @@ u8 GetMostSuitableMonToSwitchInto(void)
         }
         else
         {
-            invalidMons = 0x3F; // No viable mon to switch.
+            invalidMons = invalidParty; // No viable mon to switch.
         }
     }
     gDynamicBasePower = 0;
@@ -513,7 +538,7 @@ u8 GetMostSuitableMonToSwitchInto(void)
     gMoveResultFlags = 0;
     gCritMultiplier = 1;
     bestDmg = 0;
-    bestMonId = 6;
+    bestMonId = partySize;
     // If we couldn't find the best mon in terms of typing, find the one that deals most damage.
     for (i = 0; i < PARTY_SIZE; ++i)
     {

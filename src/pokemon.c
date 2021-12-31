@@ -23,6 +23,7 @@
 #include "overworld.h"
 #include "party_menu.h"
 #include "field_specials.h"
+#include "steal_queue.h"
 #include "constants/items.h"
 #include "constants/item_effects.h"
 #include "constants/hoenn_cries.h"
@@ -63,7 +64,12 @@ struct OakSpeechNidoranFStruct
 static EWRAM_DATA u8 sLearningMoveTableID = 0;
 EWRAM_DATA u8 gPlayerPartyCount = 0;
 EWRAM_DATA u8 gEnemyPartyCount = 0;
-EWRAM_DATA struct Pokemon gEnemyParty[PARTY_SIZE] = {};
+EWRAM_DATA struct Pokemon gEnemyParty[OPPONENT_PARTY_SIZE] = {0};
+
+// The opponent's original party, before adding stolen mons.
+EWRAM_DATA struct Pokemon gEnemyPartyOriginal[OPPONENT_PARTY_SIZE] = {0};
+// Mons stolen from the player.
+EWRAM_DATA StolenMon gStolenMons[2] = {0};
 EWRAM_DATA struct Pokemon gPlayerParty[PARTY_SIZE] = {};
 EWRAM_DATA struct SpriteTemplate gMultiuseSpriteTemplate = {0};
 static EWRAM_DATA struct OakSpeechNidoranFStruct *sOakSpeechNidoranResources = NULL;
@@ -83,6 +89,8 @@ static void GiveBoxMonInitialMoveset(struct BoxPokemon *boxMon);
 static u16 GiveMoveToBoxMon(struct BoxPokemon *boxMon, u16 move);
 static u8 GetLevelFromMonExp(struct Pokemon *mon);
 static u16 CalculateBoxMonChecksum(struct BoxPokemon *boxMon);
+static void OrderMonsByFurthest(u16 *partyMonIds, u16 size);
+static u16 GetNthFurthestMon(u16 *partyMonIds, u16 size, u16 n);
 
 #include "data/battle_moves.h"
 
@@ -1706,7 +1714,7 @@ void ZeroPlayerPartyMons(void)
 void ZeroEnemyPartyMons(void)
 {
     s32 i;
-    for (i = 0; i < PARTY_SIZE; i++)
+    for (i = 0; i < OPPONENT_PARTY_SIZE; i++)
         ZeroMonData(&gEnemyParty[i]);
 }
 
@@ -1737,17 +1745,7 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
 
     SetBoxMonData(boxMon, MON_DATA_PERSONALITY, &personality);
 
-    //Determine original trainer ID
-    if (otIdType == OT_ID_RANDOM_NO_SHINY) //Pokemon cannot be shiny
-    {
-        u32 shinyValue;
-        do
-        {
-            value = Random32();
-            shinyValue = HIHALF(value) ^ LOHALF(value) ^ HIHALF(personality) ^ LOHALF(personality);
-        } while (shinyValue < 8);
-    }
-    else if (otIdType == OT_ID_PRESET) //Pokemon has a preset OT ID
+    if (otIdType == OT_ID_PRESET) //Pokemon has a preset OT ID
     {
         value = fixedOtId;
     }
@@ -3253,6 +3251,9 @@ u32 GetBoxMonData(struct BoxPokemon *boxMon, s32 field, u8 *data)
                 | (substruct3->worldRibbon << 26);
         }
         break;
+    case MON_DATA_ID:
+        retVal = boxMon->monId;
+        break;
     default:
         break;
     }
@@ -3599,6 +3600,9 @@ void SetBoxMonData(struct BoxPokemon *boxMon, s32 field, const void *dataArg)
         substruct3->spDefenseIV = (ivs >> 25) & 0x1F;
         break;
     }
+    case MON_DATA_ID:
+        SET16(boxMon->monId);
+        break;
     default:
         break;
     }
@@ -3618,11 +3622,16 @@ void CopyMon(void *dest, void *src, size_t size)
 u8 GiveMonToPlayer(struct Pokemon *mon)
 {
     s32 i;
+    u16 monId;
 
     SetMonData(mon, MON_DATA_OT_NAME, gSaveBlock2Ptr->playerName);
     SetMonData(mon, MON_DATA_OT_GENDER, &gSaveBlock2Ptr->playerGender);
     SetMonData(mon, MON_DATA_OT_ID, gSaveBlock2Ptr->playerTrainerId);
 
+    monId = MonCounterIncr();
+    SetMonData(mon, MON_DATA_ID, &monId);
+    PlaceMonInStealQueue(monId);
+    
     for (i = 0; i < PARTY_SIZE; i++)
     {
         if (GetMonData(&gPlayerParty[i], MON_DATA_SPECIES, NULL) == SPECIES_NONE)
@@ -3671,6 +3680,61 @@ static u8 SendMonToPC(struct Pokemon* mon)
     return MON_CANT_GIVE;
 }
 
+void PlaceMonInStealQueue(u16 monId) {
+    s32 i, insertAfter, insertIdx;
+    u32 rng;
+    u16 partyMonIds[PARTY_SIZE];
+    u16 nthFurthest;
+    u8 data;
+    StealQueue *queue = &gSaveBlock2Ptr->stealQueue;
+
+    for (i = 0; i < PARTY_SIZE; i++) {
+        partyMonIds[i] = GetMonData(&gPlayerParty[i], MON_DATA_ID, &data);
+    }
+    OrderMonsByFurthest(partyMonIds, PARTY_SIZE);
+
+    nthFurthest = GetNthFurthestMon(partyMonIds, PARTY_SIZE, PARTY_INSERT_AFTER);
+    insertAfter = Queue_IndexOf(queue, nthFurthest);
+
+    // First mon
+    if (insertAfter == 0xFFFF) {
+        Queue_InsertAt(queue, monId, 0);
+        return;
+    }
+
+    rng = AdvanceSeed32(SeedGet(SEED_QUEUE_INSERTION), 1);
+    SeedSet(SEED_QUEUE_INSERTION, rng);
+    insertIdx = (insertAfter + 1) + rng % (Queue_GetLength(queue) - insertAfter);
+    Queue_InsertAt(queue, monId, insertIdx);
+}
+
+static void OrderMonsByFurthest(u16 *partyMonIds, u16 size) {
+    u16 i, j;
+    u16 temp;
+    StealQueue *queue = &gSaveBlock2Ptr->stealQueue;
+
+    for (i = 0; i < size - 1; i++) {
+        for (j = 0; j < size - i - 1; j++) {
+            if (Queue_IndexOf(queue, partyMonIds[j]) > Queue_IndexOf(queue, partyMonIds[j+1])) {
+                SWAP(partyMonIds[j], partyMonIds[j+1], temp);
+            }
+        }
+    }
+}
+
+static u16 GetNthFurthestMon(u16 *partyMonIds, u16 size, u16 n) {
+    s32 i;
+
+    if (n > size) return 0;
+
+    for (i = n - 1; i >= 0; i--) {
+        if (partyMonIds[i] != 0) {
+            return partyMonIds[i];
+        }
+    }
+    return 0;
+}
+
 u8 CalculatePlayerPartyCount(void)
 {
     gPlayerPartyCount = 0;
@@ -3689,13 +3753,40 @@ u8 CalculateEnemyPartyCount(void)
 {
     gEnemyPartyCount = 0;
 
-    while (gEnemyPartyCount < 6
+    while (gEnemyPartyCount < OPPONENT_PARTY_SIZE
         && GetMonData(&gEnemyParty[gEnemyPartyCount], MON_DATA_SPECIES, NULL) != SPECIES_NONE)
     {
         gEnemyPartyCount++;
     }
 
     return gEnemyPartyCount;
+}
+
+u8 CountPlayerBattleMons(void) {
+    s32 i;
+    u8 count = 0;
+
+    for (i = 0; i < PARTY_SIZE; i++) {
+        if (GetMonData(&gPlayerParty[i], MON_DATA_SPECIES, NULL) != SPECIES_NONE &&
+            GetMonData(&gPlayerParty[i], MON_DATA_SPECIES2, NULL) != SPECIES_EGG && 
+            GetMonData(&gPlayerParty[i], MON_DATA_HP, NULL) != 0) {
+            count++;
+        }
+    }
+    return count;
+}
+
+u8 CountEnemyBattleMons(void) {
+    s32 i;
+    u8 count = 0;
+
+    for (i = 0; i < OPPONENT_PARTY_SIZE; i++) {
+        if (GetMonData(&gEnemyParty[i], MON_DATA_SPECIES, NULL) != SPECIES_NONE &&
+            GetMonData(&gEnemyParty[i], MON_DATA_SPECIES2, NULL) != SPECIES_EGG) {
+            count++;
+        }
+    }
+    return count;
 }
 
 u8 GetMonsStateToDoubles(void)
@@ -5529,6 +5620,12 @@ u32 CanMonLearnTMHM(struct Pokemon *mon, u8 tm)
     {
         return 0;
     }
+    #ifndef SOFT
+    else if (tm >= ITEM_HM01_CUT - ITEM_TM01_FOCUS_PUNCH 
+            && tm <= ITEM_HM08_DIVE - ITEM_TM01_FOCUS_PUNCH) {
+        return TRUE;
+    }
+    #endif
     else if (tm < 32)
     {
         u32 mask = 1 << tm;
@@ -5776,21 +5873,11 @@ bool8 IsTradedMon(struct Pokemon *mon)
 
 bool8 IsOtherTrainer(u32 otId, u8 *otName)
 {
-    if (otId ==
+    return !(otId ==
         (gSaveBlock2Ptr->playerTrainerId[0]
          | (gSaveBlock2Ptr->playerTrainerId[1] << 8)
          | (gSaveBlock2Ptr->playerTrainerId[2] << 16)
-         | (gSaveBlock2Ptr->playerTrainerId[3] << 24)))
-    {
-        int i;
-
-        for (i = 0; otName[i] != EOS; i++)
-            if (otName[i] != gSaveBlock2Ptr->playerName[i])
-                return TRUE;
-        return FALSE;
-    }
-
-    return TRUE;
+         | (gSaveBlock2Ptr->playerTrainerId[3] << 24)));
 }
 
 void MonRestorePP(struct Pokemon *mon)
@@ -6047,6 +6134,10 @@ void HandleSetPokedexFlag(u16 nationalNum, u8 caseId, u32 personality)
         if (NationalPokedexNumToSpecies(nationalNum) == SPECIES_SPINDA)
             gSaveBlock2Ptr->pokedex.spindaPersonality = personality;
     }
+}
+
+u16 MonCounterIncr(void) {
+    return gSaveBlock2Ptr->monsCaught++;
 }
 
 bool8 CheckBattleTypeGhost(struct Pokemon *mon, u8 battlerId)

@@ -21,6 +21,7 @@
 #include "pokemon_storage_system.h"
 #include "new_menu_helpers.h"
 #include "trade_scene.h"
+#include "steal_queue.h"
 #include "constants/songs.h"
 #include "constants/moves.h"
 

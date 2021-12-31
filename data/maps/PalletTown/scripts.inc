@@ -190,6 +190,7 @@ PalletTown_EventScript_OakTrigger:: @ 8165605
 	textcolor 0
 	delay 30
 	playbgm MUS_OAK, 0
+	setseed SEED_TRAINER_PERSONALITY
 	message PalletTown_Text_OakDontGoOut
 	waitmessage
 	delay 85

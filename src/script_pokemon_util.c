@@ -8,6 +8,7 @@
 #include "party_menu.h"
 #include "pokedex.h"
 #include "script_pokemon_util.h"
+#include "steal_queue.h"
 #include "constants/items.h"
 #include "constants/pokemon.h"
 
@@ -45,6 +46,36 @@ void HealPlayerParty(void)
     }
 }
 
+void HealPokemon(struct Pokemon *mon)
+{
+    u8 i;
+    u16 hp;
+    u8 ppBonuses;
+    u8 data[4];
+
+    for (i = 0; i < 4; i++)
+        data[i] = 0;
+
+    hp = GetMonData(mon, MON_DATA_MAX_HP);
+    data[0] = hp;
+    data[1] = hp >> 8;
+    SetMonData(mon, MON_DATA_HP, data);
+
+    ppBonuses = GetMonData(mon, MON_DATA_PP_BONUSES);
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        u16 move = GetMonData(mon, MON_DATA_MOVE1 + i);
+        data[0] = CalculatePPWithBonus(move, ppBonuses, i);
+        SetMonData(mon, MON_DATA_PP1 + i, data);
+    }
+
+    data[0] = 0;
+    data[1] = 0;
+    data[2] = 0;
+    data[3] = 0;
+    SetMonData(mon, MON_DATA_STATUS, data);
+}
+
 u8 ScriptGiveMon(u16 species, u8 level, u16 item, u32 unused1, u32 unused2, u8 unused3)
 {
     u16 nationalDexNum;
@@ -77,12 +108,19 @@ u8 ScriptGiveEgg(u16 species)
     struct Pokemon *mon = AllocZeroed(sizeof(struct Pokemon));
     bool8 isEgg;
     bool8 sentToPc;
+    u16 monId;
 
     CreateEgg(mon, species, TRUE);
     isEgg = TRUE;
     SetMonData(mon, MON_DATA_IS_EGG, &isEgg);
 
     sentToPc = GiveMonToPlayer(mon);
+    
+    monId = GetMonData(mon, MON_DATA_ID);
+    if (monId != 0) {
+        Queue_Remove(&gSaveBlock2Ptr->stealQueue, monId);
+    }
+    
     Free(mon);
     return sentToPc;
 }

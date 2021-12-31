@@ -269,7 +269,7 @@ bool8 MEScrCmd_givepokemon(struct ScriptContext *ctx)
         heldItem = GetMonData(&gPlayerParty[5], MON_DATA_HELD_ITEM);
         if (ItemIsMail(heldItem))
             GiveMailToMon2(&gPlayerParty[5], &mail);
-        CompactPartySlots();
+        CompactPlayerPartySlots();
         CalculatePlayerPartyCount();
         StringExpandPlaceholders(gStringVar4, gText_MysteryGiftSentOver);
         ctx->data[2] = 2;

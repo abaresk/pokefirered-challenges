@@ -18,6 +18,10 @@ const u8 *BattleSetup_ConfigureTrainerBattle(const u8 *data);
 void ConfigureAndSetUpOneTrainerBattle(u8 trainerEventObjId, const u8 *trainerScript);
 bool32 GetTrainerFlagFromScriptPointer(const u8 *data);
 void SetUpTrainerMovement(void);
+bool8 CheckPlayerWhiteOut(void);
+bool8 ShouldPlayerWhiteout(void);
+bool8 PlayerHasMoreThanOneMon(void);
+bool8 EnoughMonsForDoubleBattle(void);
 u8 GetTrainerBattleMode(void);
 u16 GetRivalBattleFlags(void);
 void SetBattledTrainerFlag(void);
@@ -33,5 +37,7 @@ void ShowTrainerCantBattleSpeech(void);
 void PlayTrainerEncounterMusic(void);
 const u8 *GetTrainerALoseText(void);
 const u8 *GetTrainerWonSpeech(void);
+bool8 IsTrainerBattleDouble(u16 battleMode);
+bool32 IsPlayerDefeated(u32 battleOutcome);
 
 #endif // GUARD_BATTLE_SETUP_H

@@ -24,6 +24,9 @@ FuchsiaCity_Mart_EventScript_Clerk:: @ 816D4F3
 FuchsiaCity_Mart_Items:: @ 816D518
 	.2byte ITEM_ULTRA_BALL
 	.2byte ITEM_GREAT_BALL
+#ifdef SCALING_POKE_BALL_MULTIPLIER
+	.2byte ITEM_POKE_BALL
+#endif
 	.2byte ITEM_SUPER_POTION
 	.2byte ITEM_REVIVE
 	.2byte ITEM_FULL_HEAL

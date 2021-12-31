@@ -1,3 +1,4 @@
+#include "config.h"
 #include "constants/global.h"
 #include "constants/flags.h"
 #include "constants/event_objects.h"
@@ -36,6 +37,7 @@
 #include "constants/easy_chat.h"
 #include "constants/trainer_card.h"
 #include "constants/help_system.h"
+#include "constants/seeds.h"
 	.include "asm/macros.inc"
 	.include "asm/macros/event.inc"
 	.set FALSE, 0
@@ -1007,6 +1009,11 @@ Text_Gyaoo:: @ 81A6448
 Text_MoveCanOnlyBeLearnedOnce:: @ 81A644F
 	.string "This move can be learned only\n"
 	.string "once. Is that okay?$"
+
+gText_TrainerEncounterWhiteOut:: @ 8272DE3
+	.string "{PLAYER} does not have enough\n"
+	.string "POKéMON to battle!\p"
+	.string "{PLAYER} whited out!$"
 
 EventScript_ResetAllMapFlags:: @ 81A6481
 	setflag FLAG_HIDE_OAK_IN_HIS_LAB

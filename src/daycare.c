@@ -440,7 +440,7 @@ static void StorePokemonInDaycare(struct Pokemon *mon, struct DaycareMon *daycar
     BoxMonRestorePP(&daycareMon->mon);
     daycareMon->steps = 0;
     ZeroMonData(mon);
-    CompactPartySlots();
+    CompactPlayerPartySlots();
     CalculatePlayerPartyCount();
 }
 
@@ -529,7 +529,7 @@ static u16 TakeSelectedPokemonFromDaycare(struct DaycareMon *daycareMon)
 
     ZeroBoxMonData(&daycareMon->mon);
     daycareMon->steps = 0;
-    CompactPartySlots();
+    CompactPlayerPartySlots();
     CalculatePlayerPartyCount();
     return species;
 }
@@ -1077,7 +1077,7 @@ static void _GiveEggFromDaycare(struct DayCare *daycare)
     isEgg = TRUE;
     SetMonData(&egg, MON_DATA_IS_EGG, &isEgg);
     gPlayerParty[PARTY_SIZE - 1] = egg;
-    CompactPartySlots();
+    CompactPlayerPartySlots();
     CalculatePlayerPartyCount();
     RemoveEggFromDayCare(daycare);
 }
@@ -1888,11 +1888,15 @@ static void CB2_EggHatch_1(void)
 {
     u16 species;
     u8 gender;
-    u32 personality;
+    u32 personality, monId;
 
     switch (sEggHatchData->CB2_state)
     {
     case 0:
+        monId = MonCounterIncr();
+        SetMonData(&gPlayerParty[sEggHatchData->eggPartyID], MON_DATA_ID, &monId);
+        PlaceMonInStealQueue(monId);
+        
         BeginNormalPaletteFade(0xFFFFFFFF, 0, 0x10, 0, RGB_BLACK);
         sEggHatchData->eggSpriteID = CreateSprite(&sSpriteTemplate_EggHatch, 120, 75, 5);
         ShowBg(0);
