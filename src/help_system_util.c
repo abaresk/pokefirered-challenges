@@ -25,7 +25,6 @@ struct HelpSystemVideoState
     /*0x15*/ u8 state;
 };
 
-static EWRAM_DATA u8 sMapTilesBackup[BG_CHAR_SIZE] = {0};
 EWRAM_DATA u8 gDisableHelpSystemVolumeReduce = 0;
 EWRAM_DATA bool8 gHelpSystemToggleWithRButtonDisabled = FALSE;
 static EWRAM_DATA u8 sDelayTimer = 0;
@@ -161,7 +160,6 @@ void SaveMapGPURegs(void)
 
 void SaveMapTiles(void)
 {
-    RequestDma3Copy((void *)BG_CHAR_ADDR(3), sMapTilesBackup, BG_CHAR_SIZE, DMA3_16BIT);
 }
 
 void SaveMapTextColors(void)
@@ -190,7 +188,6 @@ void RestoreGPURegs(void)
 
 void RestoreMapTiles(void)
 {
-    RequestDma3Copy(sMapTilesBackup, (void *)BG_CHAR_ADDR(3), BG_CHAR_SIZE, DMA3_16BIT);
 }
 
 void RestoreMapTextColors(void)

@@ -1911,7 +1911,7 @@ void HelpSystem_Enable(void)
 {
     if (!QL_IS_PLAYBACK_STATE)
     {
-        gHelpSystemEnabled = TRUE;
+        gHelpSystemEnabled = FALSE;
         HelpSystem_EnableToggleWithRButton();
     }
 }
@@ -1923,7 +1923,7 @@ void HelpSystem_DisableToggleWithRButton(void)
 
 void HelpSystem_EnableToggleWithRButton(void)
 {
-    gHelpSystemToggleWithRButtonDisabled = FALSE;
+    gHelpSystemToggleWithRButtonDisabled = TRUE;
 }
 
 static void ResetHelpSystemListMenu(struct HelpSystemListMenu * helpListMenu, struct ListMenuItem * listMenuItemsBuffer)
