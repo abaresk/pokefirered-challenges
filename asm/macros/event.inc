@@ -1447,7 +1447,7 @@
 	.endm
 
 	.macro setseed seedID:req
-	.byte 0xe3
+	.byte 0xd5
 	.2byte \seedID
 	.endm
 	
