@@ -28,6 +28,7 @@
 #include "load_save.h"
 #include "random.h"
 #include "trade_scene.h"
+#include "steal_queue.h"
 #include "constants/items.h"
 #include "constants/easy_chat.h"
 #include "constants/songs.h"
@@ -2463,7 +2464,7 @@ static void CreateInGameTradePokemonInternal(u8 playerSlot, u8 inGameTradeIdx)
     SetMonData(tradeMon, MON_DATA_MET_LOCATION, &metLocation);
 
     monId = MonCounterIncr();
-    SetMonData(pokemon, MON_DATA_ID, &monId);
+    SetMonData(tradeMon, MON_DATA_ID, &monId);
     PlaceMonInStealQueue(monId);
 
     mailNum = 0;

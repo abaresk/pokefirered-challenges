@@ -38,6 +38,5 @@ void PlayTrainerEncounterMusic(void);
 const u8 *GetTrainerALoseText(void);
 const u8 *GetTrainerWonSpeech(void);
 bool8 IsTrainerBattleDouble(u16 battleMode);
-bool32 IsPlayerDefeated(u32 battleOutcome);
 
 #endif // GUARD_BATTLE_SETUP_H

@@ -38,7 +38,6 @@ static void npc_clear_strange_bits(struct ObjectEvent * playerObjEvent);
 static bool8 TryDoMetatileBehaviorForcedMovement(void);
 static void MovePlayerAvatarUsingKeypadInput(u8 direction, u16 newKeys, u16 heldKeys);
 static void PlayerAllowForcedMovementIfMovingSameDirection(void);
-static bool8 ForcedMovement_None(void);
 static bool8 ForcedMovement_Slip(void);
 static bool8 ForcedMovement_WalkSouth(void);
 static bool8 ForcedMovement_WalkNorth(void);
@@ -274,7 +273,7 @@ static bool8 TryDoMetatileBehaviorForcedMovement(void)
     }
 }
 
-static bool8 ForcedMovement_None(void)
+bool8 ForcedMovement_None(void)
 {
     if (gPlayerAvatar.flags & PLAYER_AVATAR_FLAG_FORCED)
     {

@@ -1,4 +1,5 @@
 #include "global.h"
+#include "battle.h"
 #include "gflib.h"
 #include "data.h"
 #include "item.h"
@@ -6,6 +7,7 @@
 #include "pokemon_storage_system_internal.h"
 #include "pokemon_summary_screen.h"
 #include "strings.h"
+#include "steal_queue.h"
 #include "constants/items.h"
 #include "constants/moves.h"
 
@@ -45,6 +47,7 @@ static bool8 sub_809494C(void);
 static bool8 sub_8094A0C(void);
 static void sub_8094AD8(void);
 static void sub_8094C84(void);
+static s16 CompactPartySlots(Pokemon *party, u16 firstSlot, u16 lastSlot);
 
 static const u16 sHandCursorPalette[] = INCBIN_U16("graphics/interface/pss_unk_83D2BCC.gbapal");
 static const u16 sHandCursorTiles[] = INCBIN_U16("graphics/interface/pss_unk_83D2BEC.4bpp");
@@ -726,7 +729,7 @@ void ReleaseMon(void)
         else
             boxId = StorageGetCurrentBox();
 
-        RemoveReleasedMonFromQueue(boxId, sCursorPosition);
+        RemoveReleasedMonFromQueue(boxId, sBoxCursorPosition);
         PurgeMonOrBoxMon(boxId, sBoxCursorPosition);
     }
     sub_8093A10();
@@ -910,20 +913,11 @@ s16 CompactPlayerPartySlots(void)
 }
 
 s16 CompactEnemyPartySlots(OpponentType type) {
-
-    if (!(gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS)) {
-        return CompactPartySlots(gEnemyParty, 0, OPPONENT_PARTY_SIZE);
-    }
-
-    if (type == FIRST_OPPONENT) {
-        return CompactPartySlots(gEnemyParty, 0, OPPONENT_PARTY_SIZE / 2);
-    } else {
-        return CompactPartySlots(gEnemyParty, OPPONENT_PARTY_SIZE / 2, OPPONENT_PARTY_SIZE);
-    }
+    return CompactPartySlots(gEnemyParty, 0, OPPONENT_PARTY_SIZE);
 }
 
 // Return the index after the final mon (post-compaction). 
-s16 CompactPartySlots(Pokemon *party, u16 firstSlot, u16 lastSlot) {
+static s16 CompactPartySlots(Pokemon *party, u16 firstSlot, u16 lastSlot) {
     s16 retVal = -1;
     u16 i, last;
 

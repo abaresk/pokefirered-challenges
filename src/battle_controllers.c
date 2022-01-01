@@ -276,9 +276,6 @@ static void SetBattlePartyIds(void)
                 gBattlerPartyIndexes[i] = FindNthUsableMon(gEnemyParty, OPPONENT_PARTY_SIZE, i / 2 + 1);
             }
         }
-
-        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS)
-            gBattlerPartyIndexes[1] = 0, gBattlerPartyIndexes[3] = 4;
     }
 }
 

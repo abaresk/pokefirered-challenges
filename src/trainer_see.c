@@ -6,6 +6,7 @@
 #include "quest_log.h"
 #include "script.h"
 #include "task.h"
+#include "trainer_see.h"
 #include "util.h"
 #include "event_scripts.h"
 #include "constants/battle_setup.h"
@@ -23,7 +24,6 @@ static u8 GetTrainerApproachDistanceWest(struct ObjectEvent * trainerObj, s16 ra
 static u8 GetTrainerApproachDistanceEast(struct ObjectEvent * trainerObj, s16 range, s16 x, s16 y);
 static u8 CheckPathBetweenTrainerAndPlayer(struct ObjectEvent * trainerObj, u8 approachDistance, u8 facingDirection);
 static void TrainerApproachPlayer(struct ObjectEvent * trainerObj, u8 approachDistance);
-static void Task_RunTrainerSeeFuncList(u8 taskId);
 static bool8 TrainerSeeFunc_Dummy(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj);
 static bool8 TrainerSeeFunc_StartExclMark(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj);
 static bool8 TrainerSeeFunc_WaitExclMark(u8 taskId, struct Task * task, struct ObjectEvent * trainerObj);
@@ -567,14 +567,13 @@ static bool8 PlayerFaceAway(u8 taskId, struct Task *task, struct ObjectEvent *tr
 
     // Set trainer's movement type so they stop and remain facing that direction
     SetTrainerMovementType(trainerObj, GetTrainerFacingDirectionMovementType(trainerObj->facingDirection));
-    TryOverrideTemplateCoordsForObjectEvent(trainerObj, GetTrainerFacingDirectionMovementType(trainerObj->facingDirection));
     OverrideTemplateCoordsForObjectEvent(trainerObj);
 
     playerObj = &gObjectEvents[gPlayerAvatar.objectEventId];
     if (ObjectEventIsMovementOverridden(playerObj) && !ObjectEventClearHeldMovementIfFinished(playerObj))
         return FALSE;
 
-    sub_808BCE8();
+    ForcedMovement_None();
     ObjectEventSetHeldMovement(&gObjectEvents[gPlayerAvatar.objectEventId], GetFaceDirectionMovementAction(trainerObj->facingDirection));
     task->tFuncId = TRSEE_EXCLAMATION_FACE_AWAY_WAIT;
     return FALSE;

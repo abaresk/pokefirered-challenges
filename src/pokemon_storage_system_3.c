@@ -2357,7 +2357,7 @@ static void sub_808F68C(void)
 {
     LZ77UnCompWram(gUnknown_8E9CAEC, gPSSData->field_B0);
     LoadPalette(gPSSMenu_Pal, 0x10, 0x20);
-    LZ77UnCompWram(sMenuStolen_Tilemap, sStorage->stolenSlotTilemapBuffer);
+    LZ77UnCompWram(sMenuStolen_Tilemap, gPSSData->stolenSlotTilemapBuffer);
     LoadPalette(sMenuStolen_Pal, 0xF0, 0x20);
     SetBoxPartyPokemonDropdownMap2(1, 1, gPSSData->field_B0, 12, 22);
     SetBoxPartyPokemonDropdownMap2(2, 1, gUnknown_83CE778, 9, 4);
@@ -2506,7 +2506,7 @@ static void sub_808FA30(u8 partyId, bool8 hasMon)
     const u16 *data;
 
     if (!hasMon) {
-        data = sPartySlotEmpty_Tilemap;
+        data = gUnknown_83CE7D8;
     } 
     #ifdef PREVIEW_NEXT_STEAL
     else if (FlagGet(FLAG_SYS_POKEDEX_GET) && 
@@ -2515,7 +2515,7 @@ static void sub_808FA30(u8 partyId, bool8 hasMon)
             }
     #endif
     else {
-        data = sPartySlotFilled_Tilemap;
+        data = gUnknown_83CE7C0;
     }
 
     if (partyId == 0) {

@@ -24,8 +24,10 @@
 #include "field_message_box.h"
 #include "vs_seeker.h"
 #include "battle.h"
+#include "battle_setup.h"
 #include "battle_transition.h"
 #include "battle_controllers.h"
+#include "trainer_see.h"
 #include "constants/battle_setup.h"
 #include "constants/items.h"
 #include "constants/maps.h"
@@ -1000,10 +1002,7 @@ static void CB2_EndTrainerBattle(void)
 
         // If you win, replace stolen mon with one of theirs. If you lose, get your
         // mon back.
-        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS) {
-            TryReturnMonToPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT, playerWon);
-            TryReturnMonToPlayer(gTrainerBattleOpponent_B, SECOND_OPPONENT, playerWon);
-        } else if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) {
+        if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) {
             TryReturnMonToPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT, playerWon);
             TryReturnMonToPlayer(gTrainerBattleOpponent_A, SECOND_OPPONENT, playerWon);
         } else {

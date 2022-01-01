@@ -1518,7 +1518,7 @@ bool8 HasNoMonsToSwitch(u8 battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
                 playerId = GetBattlerAtPosition(B_POSITION_PLAYER_LEFT);
                 flankId = GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT);
                 party = gPlayerParty;
-                partySize = PLAYER_PARTY_SIZE;
+                partySize = PARTY_SIZE;
             }
             if (partyIdBattlerOn1 == partySize)
                 partyIdBattlerOn1 = gBattlerPartyIndexes[playerId];

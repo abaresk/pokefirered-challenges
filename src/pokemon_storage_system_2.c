@@ -47,17 +47,6 @@ static const struct PSS_MenuStringPtrs sUnknown_83CDA20[] = {
     {gText_SeeYa,           gText_SeeYaDescription      }
 };
 
-void BoxMons_ForEach(void (*f)(BoxPokemon *, void *), void *data) {
-    s32 i;
-    s32 j;
-
-    for (i = 0; i < TOTAL_BOXES_COUNT; i++) {
-        for (j = 0; j < IN_BOX_COUNT; j++) {
-            f(&gPokemonStoragePtr->boxes[i][j], data);
-        }
-    }
-}
-
 void DrawTextWindowAndBufferTiles(const u8 *string, void *dst, u8 zero1, u8 zero2, u8 *buffer, s32 bytesToBuffer)
 {
     s32 i, tileBytesToBuffer, remainingBytes;

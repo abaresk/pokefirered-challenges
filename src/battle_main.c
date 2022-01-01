@@ -74,7 +74,6 @@ static void CB2_HandleStartMultiBattle(void);
 static u8 CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum);
 static void TryStealMonFromPlayer(u16 trainerId, OpponentType type);
 static void StealFromParty(u32 trainerPersonality, Pokemon *dest, OpponentType type);
-static void StealFromBoxes(u32 trainerPersonality, Pokemon *dest);
 static void GiveMonToOpponent(Pokemon *mon, OpponentType type, u32 trainerPersonality);
 static void ReturnStolenItem(OpponentType type);
 static void GetMonToReturn(u32 trainerId, Pokemon *dest, OpponentType type, bool8 playerWon);
@@ -720,9 +719,7 @@ static void CB2_InitBattleInternal(void)
     if (!(gBattleTypeFlags & BATTLE_TYPE_LINK))
     {
         // Create enemy party here
-        CreateNPCTrainerParty(&gEnemyParty[0], gTrainerBattleOpponent_A, TRUE);
-        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS)
-            CreateNPCTrainerParty(&gEnemyParty[4], gTrainerBattleOpponent_B, FALSE);
+        CreateNPCTrainerParty(&gEnemyParty[0], gTrainerBattleOpponent_A);
 
         // Backup trainer's original party
         for (i = 0; i < OPPONENT_PARTY_SIZE; i++) {
@@ -736,10 +733,7 @@ static void CB2_InitBattleInternal(void)
         }
 
         // Steal mons from player
-        if (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS) {
-            TryStealMonFromPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT);
-            TryStealMonFromPlayer(gTrainerBattleOpponent_B, SECOND_OPPONENT);
-        } else if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) {
+        if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE) {
             TryStealMonFromPlayer(gTrainerBattleOpponent_A, FIRST_OPPONENT);
             TryStealMonFromPlayer(gTrainerBattleOpponent_A, SECOND_OPPONENT);
         } else if (gBattleTypeFlags & BATTLE_TYPE_TRAINER) {
@@ -1658,11 +1652,6 @@ static void StealFromParty(u32 trainerPersonality, Pokemon *dest, OpponentType t
     u16 monId;
     u8 data;
 
-    if (gBattleTypeFlags & BATTLE_TYPE_INGAME_PARTNER) {
-        first = type == FIRST_OPPONENT ? 0              : PARTY_SIZE / 2;
-        last = type == FIRST_OPPONENT  ? PARTY_SIZE / 2 : PARTY_SIZE;
-    }
-
     #ifdef STEAL_FROM_QUEUE
     mon = FurthestPartyMon(first, last, type);
     #else
@@ -1684,27 +1673,8 @@ static void StealFromParty(u32 trainerPersonality, Pokemon *dest, OpponentType t
 
     // Remove mon from party
     ZeroMonData(mon);
-    CompactPlayerPartySlots(gPlayerParty, first, last);
+    CompactPlayerPartySlots();
     CalculatePlayerPartyCount();
-}
-
-static void StealFromBoxes(u32 trainerPersonality, Pokemon *dest) {
-    BoxPokemon *mon;
-    BoxMonIter iter = {
-        .trainerPersonality = trainerPersonality,
-        .mon = NULL,
-        .value = 0
-    };
-
-    // Pick a mon
-    BoxMons_ForEach(FavoriteBoxMon_iter, &iter);
-    mon = iter.mon;
-
-    // Copy mon data
-    BoxMonToMon(mon, dest);
-
-    // Remove mon from box
-    ZeroBoxMonData(mon);
 }
 
 // gEnemyParty has already been initialized
@@ -1717,8 +1687,8 @@ static void GiveMonToOpponent(Pokemon *mon, OpponentType type, u32 trainerPerson
 
     if (mon == NULL) return;
 
-    numSlots = (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS) ? OPPONENT_PARTY_SIZE / 2 : OPPONENT_PARTY_SIZE;
-    startingSlot = (gBattleTypeFlags & BATTLE_TYPE_TWO_OPPONENTS && type == SECOND_OPPONENT) ? OPPONENT_PARTY_SIZE / 2 : 0;
+    numSlots = OPPONENT_PARTY_SIZE;
+    startingSlot = 0;
     insertSlot = startingSlot + numSlots;
 
     gEnemyParty[insertSlot - 1] = *mon;
