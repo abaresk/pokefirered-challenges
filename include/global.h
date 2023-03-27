@@ -291,11 +291,13 @@ struct SaveBlock2
     /*0xAF0*/ struct BerryCrush berryCrush;
     /*0xB00*/ struct PokemonJumpResults pokeJump;
     /*0xB10*/ struct BerryPickingResults berryPick;
-    /*0xB20*/ u8 filler_B20[0x400];
+    // REMOVING TO MAKE SPACE FOR STEAL QUEUE
+    // /*0xB20*/ u8 filler_B20[0x400];
     /*0xF20*/ u32 encryptionKey;
+
     /*0xF2C*/ u16 monsCaught;
     /*0xF2E*/ StealQueue stealQueue;
-}; // size: 0xF24
+};
 
 extern struct SaveBlock2 *gSaveBlock2Ptr;
 
